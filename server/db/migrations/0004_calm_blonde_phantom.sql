@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "product_stock_settings_active_warehouse_unique" ON "product_stock_settings" USING btree ("product_id","warehouse_id") WHERE "product_stock_settings"."is_active" = true AND "product_stock_settings"."warehouse_id" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "product_stock_settings_active_product_level_unique" ON "product_stock_settings" USING btree ("product_id") WHERE "product_stock_settings"."is_active" = true AND "product_stock_settings"."warehouse_id" IS NULL;

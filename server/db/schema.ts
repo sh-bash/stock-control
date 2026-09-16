@@ -10,8 +10,10 @@ import {
   date,
   index,
   unique,
+  uniqueIndex,
   primaryKey,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 const timestamps = {
   created_at: timestamp('created_at').notNull().defaultNow(),
@@ -111,20 +113,37 @@ export const globalStockSettings = pgTable('global_stock_settings', {
   ...timestamps,
 })
 
-export const productStockSettings = pgTable('product_stock_settings', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  product_id: uuid('product_id').notNull().references(() => products.id),
-  warehouse_id: uuid('warehouse_id').references(() => warehouses.id),
-  min_stock: decimal('min_stock', { precision: 18, scale: 4 }),
-  reorder_point: decimal('reorder_point', { precision: 18, scale: 4 }),
-  reorder_qty: decimal('reorder_qty', { precision: 18, scale: 4 }),
-  fast_moving_min_daily_out: decimal('fast_moving_min_daily_out', { precision: 18, scale: 4 }),
-  slow_moving_max_daily_out: decimal('slow_moving_max_daily_out', { precision: 18, scale: 4 }),
-  aging_warning_days: integer('aging_warning_days'),
-  aging_danger_days: integer('aging_danger_days'),
-  is_active: boolean('is_active').notNull().default(true),
-  ...timestamps,
-})
+export const productStockSettings = pgTable(
+  'product_stock_settings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').references(() => warehouses.id),
+    min_stock: decimal('min_stock', { precision: 18, scale: 4 }),
+    reorder_point: decimal('reorder_point', { precision: 18, scale: 4 }),
+    reorder_qty: decimal('reorder_qty', { precision: 18, scale: 4 }),
+    fast_moving_min_daily_out: decimal('fast_moving_min_daily_out', { precision: 18, scale: 4 }),
+    slow_moving_max_daily_out: decimal('slow_moving_max_daily_out', { precision: 18, scale: 4 }),
+    aging_warning_days: integer('aging_warning_days'),
+    aging_danger_days: integer('aging_danger_days'),
+    is_active: boolean('is_active').notNull().default(true),
+    ...timestamps,
+  },
+  (table) => [
+    // resolveEffectiveSettings() assumes at most one ACTIVE override per
+    // product+warehouse (and at most one ACTIVE product-level override,
+    // warehouse_id IS NULL) — without these, the UI/API let you create
+    // duplicates and which one "wins" would be an arbitrary row-order
+    // accident. Scoped to is_active so a deactivated row (kept for audit)
+    // never blocks creating its active replacement.
+    uniqueIndex('product_stock_settings_active_warehouse_unique')
+      .on(table.product_id, table.warehouse_id)
+      .where(sql`${table.is_active} = true AND ${table.warehouse_id} IS NOT NULL`),
+    uniqueIndex('product_stock_settings_active_product_level_unique')
+      .on(table.product_id)
+      .where(sql`${table.is_active} = true AND ${table.warehouse_id} IS NULL`),
+  ],
+)
 
 // ============================================================
 // §5.8 Auth & Ops

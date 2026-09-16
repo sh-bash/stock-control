@@ -36,7 +36,24 @@ export default defineEventHandler(async (event) => {
   if ('aging_danger_days' in d) values.aging_danger_days = d.aging_danger_days ?? null
   if ('is_active' in d) values.is_active = d.is_active
 
-  const rows = await updateSetting(id, values)
-  if (!rows[0]) return failure('Setting tidak ditemukan', 'NOT_FOUND', 404)
-  return success(rows[0])
+  try {
+    const rows = await updateSetting(id, values)
+    if (!rows[0]) return failure('Setting tidak ditemukan', 'NOT_FOUND', 404)
+    return success(rows[0])
+  } catch (err: any) {
+    // Re-activating a row (is_active: true) can collide with the partial
+    // unique indexes on product_stock_settings the same way create can.
+    if (err?.code === '23505') {
+      throw createError({
+        statusCode: 409,
+        data: {
+          success: false,
+          data: null,
+          message: 'Sudah ada override aktif lain untuk product/warehouse ini. Nonaktifkan yang lain terlebih dahulu.',
+          meta: { code: 'DUPLICATE_SETTING' },
+        },
+      })
+    }
+    throw err
+  }
 })
