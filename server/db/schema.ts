@@ -7,6 +7,10 @@ import {
   integer,
   decimal,
   timestamp,
+  date,
+  index,
+  unique,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 
 const timestamps = {
@@ -255,3 +259,158 @@ export const notificationSettings = pgTable('notification_settings', {
   delivery_method: varchar('delivery_method', { length: 10 }).notNull().default('both'),
   ...timestamps,
 })
+
+// ============================================================
+// §5.2 Purchase
+// ============================================================
+
+export const purchaseOrders = pgTable('purchase_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_po: varchar('no_po', { length: 50 }).notNull().unique(),
+  supplier_id: uuid('supplier_id').notNull().references(() => suppliers.id),
+  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+  order_date: date('order_date').notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  created_by: uuid('created_by').notNull().references(() => users.id),
+  ...timestamps,
+})
+
+export const purchaseOrderItems = pgTable('purchase_order_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  po_id: uuid('po_id').notNull().references(() => purchaseOrders.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  qty_order: decimal('qty_order', { precision: 18, scale: 4 }).notNull(),
+  unit_price: decimal('unit_price', { precision: 18, scale: 2 }).notNull(),
+  qty_received: decimal('qty_received', { precision: 18, scale: 4 }).notNull().default('0'),
+  ...timestamps,
+})
+
+export const shipments = pgTable('shipments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_shipment: varchar('no_shipment', { length: 50 }).notNull().unique(),
+  expedition_id: uuid('expedition_id').notNull().references(() => expeditions.id),
+  ship_date: date('ship_date').notNull(),
+  total_shipping_cost: decimal('total_shipping_cost', { precision: 18, scale: 2 }).notNull(),
+  allocation_method: varchar('allocation_method', { length: 20 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  ...timestamps,
+})
+
+export const shipmentPoRef = pgTable('shipment_po_ref', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shipment_id: uuid('shipment_id').notNull().references(() => shipments.id),
+  po_id: uuid('po_id').notNull().references(() => purchaseOrders.id),
+  ...timestamps,
+})
+
+export const shipmentItems = pgTable('shipment_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shipment_id: uuid('shipment_id').notNull().references(() => shipments.id),
+  po_item_id: uuid('po_item_id').notNull().references(() => purchaseOrderItems.id),
+  qty_shipped: decimal('qty_shipped', { precision: 18, scale: 4 }).notNull(),
+  weight: decimal('weight', { precision: 18, scale: 4 }),
+  allocated_shipping_cost_per_unit: decimal('allocated_shipping_cost_per_unit', { precision: 18, scale: 4 }),
+  ...timestamps,
+})
+
+export const receivings = pgTable('receivings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_receiving: varchar('no_receiving', { length: 50 }).notNull().unique(),
+  shipment_id: uuid('shipment_id').notNull().references(() => shipments.id),
+  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+  receive_date: date('receive_date').notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  created_by: uuid('created_by').notNull().references(() => users.id),
+  ...timestamps,
+})
+
+export const receivingItems = pgTable('receiving_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  receiving_id: uuid('receiving_id').notNull().references(() => receivings.id),
+  shipment_item_id: uuid('shipment_item_id').notNull().references(() => shipmentItems.id),
+  po_item_id: uuid('po_item_id').notNull().references(() => purchaseOrderItems.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  qty_received: decimal('qty_received', { precision: 18, scale: 4 }).notNull(),
+  unit_price: decimal('unit_price', { precision: 18, scale: 2 }).notNull(),
+  shipping_cost_per_unit: decimal('shipping_cost_per_unit', { precision: 18, scale: 4 }).notNull(),
+  hpp: decimal('hpp', { precision: 18, scale: 4 }).notNull(),
+  stock_layer_id: uuid('stock_layer_id'),
+  ...timestamps,
+})
+
+// ============================================================
+// §5.4 Stock (Core FIFO Engine)
+// ============================================================
+
+export const stockLayers = pgTable(
+  'stock_layers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+    source_type: varchar('source_type', { length: 20 }).notNull(),
+    source_id: uuid('source_id').notNull(),
+    receive_date: date('receive_date').notNull(),
+    qty_original: decimal('qty_original', { precision: 18, scale: 4 }).notNull(),
+    qty_remaining: decimal('qty_remaining', { precision: 18, scale: 4 }).notNull(),
+    hpp: decimal('hpp', { precision: 18, scale: 4 }).notNull(),
+    status: varchar('status', { length: 10 }).notNull().default('active'),
+    ...timestamps,
+  },
+  (table) => [
+    index('stock_layers_product_warehouse_status_receivedate_idx').on(
+      table.product_id,
+      table.warehouse_id,
+      table.status,
+      table.receive_date,
+    ),
+  ],
+)
+
+// NOTE: stock_ledger is created as a PostgreSQL native RANGE-partitioned table
+// (PARTITION BY RANGE (transaction_date), per month) — see the hand-written
+// partitioning statements appended to the generated migration file. The
+// primary key must include the partition column, hence the composite PK below.
+export const stockLedger = pgTable(
+  'stock_ledger',
+  {
+    id: uuid('id').defaultRandom().notNull(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+    transaction_type: varchar('transaction_type', { length: 30 }).notNull(),
+    reference_type: varchar('reference_type', { length: 30 }).notNull(),
+    reference_id: uuid('reference_id').notNull(),
+    reference_no: varchar('reference_no', { length: 50 }),
+    transaction_date: timestamp('transaction_date').notNull(),
+    qty_in: decimal('qty_in', { precision: 18, scale: 4 }).notNull().default('0'),
+    qty_out: decimal('qty_out', { precision: 18, scale: 4 }).notNull().default('0'),
+    hpp_used: decimal('hpp_used', { precision: 18, scale: 4 }),
+    running_balance_qty: decimal('running_balance_qty', { precision: 18, scale: 4 }).notNull(),
+    running_balance_value: decimal('running_balance_value', { precision: 18, scale: 4 }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.id, table.transaction_date] }),
+    index('stock_ledger_product_warehouse_txndate_idx').on(
+      table.product_id,
+      table.warehouse_id,
+      table.transaction_date,
+    ),
+    index('stock_ledger_reference_idx').on(table.reference_type, table.reference_id),
+  ],
+)
+
+export const stockSummary = pgTable(
+  'stock_summary',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+    qty_on_hand: decimal('qty_on_hand', { precision: 18, scale: 4 }).notNull().default('0'),
+    qty_reserved: decimal('qty_reserved', { precision: 18, scale: 4 }).notNull().default('0'),
+    qty_available: decimal('qty_available', { precision: 18, scale: 4 }).notNull().default('0'),
+    total_value: decimal('total_value', { precision: 18, scale: 4 }).notNull().default('0'),
+    ...timestamps,
+  },
+  (table) => [unique('stock_summary_product_warehouse_unique').on(table.product_id, table.warehouse_id)],
+)

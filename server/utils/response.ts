@@ -2,7 +2,7 @@ export function success(data: unknown = {}, message: string | null = null, meta:
   return { success: true, data, message, meta }
 }
 
-export function failure(message: string, code: string, statusCode = 400) {
+export function failure(message: string, code: string, statusCode = 400): never {
   throw createError({
     statusCode,
     data: { success: false, data: null, message, meta: { code } },
