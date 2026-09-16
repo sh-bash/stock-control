@@ -73,6 +73,24 @@ function warehouseName(id: string) {
   return warehouses.value.find((w) => w.id === id)?.name || id
 }
 
+const rebuilding = ref(false)
+const rebuildMsg = ref('')
+async function rebuildSummary() {
+  rebuilding.value = true
+  rebuildMsg.value = ''
+  errorMsg.value = ''
+  try {
+    const result = await useApi<any[]>('/stock/rebuild-summary', { method: 'POST' })
+    const changed = result.filter((r: any) => r.before !== r.after).length
+    rebuildMsg.value = `Rebuild selesai: ${result.length} kombinasi dicek, ${changed} berubah.`
+    await loadAll()
+  } catch (err: any) {
+    errorMsg.value = err?.data?.data?.message || 'Gagal rebuild stock summary'
+  } finally {
+    rebuilding.value = false
+  }
+}
+
 onMounted(loadAll)
 </script>
 
@@ -80,11 +98,15 @@ onMounted(loadAll)
   <div>
     <h1>Stock Overview</h1>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
+    <p v-if="rebuildMsg" class="success">{{ rebuildMsg }}</p>
 
     <div class="tabs">
       <button :class="{ active: tab === 'summary' }" @click="tab = 'summary'">Stock Summary</button>
       <button :class="{ active: tab === 'layers' }" @click="tab = 'layers'">Stock Layers (FIFO)</button>
       <button :class="{ active: tab === 'ledger' }" @click="tab = 'ledger'">Stock Ledger</button>
+      <button class="rebuild" :disabled="rebuilding" @click="rebuildSummary">
+        {{ rebuilding ? 'Rebuilding...' : 'Rebuild Stock Summary' }}
+      </button>
       <button class="refresh" @click="loadAll">Refresh</button>
     </div>
 
@@ -159,8 +181,16 @@ onMounted(loadAll)
   background: #2563eb;
   color: #fff;
 }
-.tabs button.refresh {
+.tabs button.rebuild {
   margin-left: auto;
+  background: #7c3aed;
+  color: #fff;
+}
+.tabs button.rebuild:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.tabs button.refresh {
   background: #94a3b8;
   color: #fff;
 }
@@ -186,4 +216,5 @@ onMounted(loadAll)
 .status-active { background: #dcfce7; color: #16a34a; }
 .status-exhausted { background: #fee2e2; color: #dc2626; }
 .error { color: #dc2626; }
+.success { color: #16a34a; }
 </style>

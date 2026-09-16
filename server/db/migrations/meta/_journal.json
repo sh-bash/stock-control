@@ -22,6 +22,13 @@
       "when": 1789558491108,
       "tag": "0002_legal_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789559714116,
+      "tag": "0003_lucky_skreet",
+      "breakpoints": true
     }
   ]
 }

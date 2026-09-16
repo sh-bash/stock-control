@@ -10,7 +10,8 @@
     "postinstall": "nuxt prepare",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx server/db/migrate.ts",
-    "db:seed": "tsx server/db/seed.ts"
+    "db:seed": "tsx server/db/seed.ts",
+    "db:rebuild-stock-summary": "tsx server/db/rebuild-stock-summary.ts"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.7.0",

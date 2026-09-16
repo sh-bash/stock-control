@@ -414,3 +414,69 @@ export const stockSummary = pgTable(
   },
   (table) => [unique('stock_summary_product_warehouse_unique').on(table.product_id, table.warehouse_id)],
 )
+
+// ============================================================
+// §5.2 Purchase Return
+// ============================================================
+
+export const purchaseReturns = pgTable('purchase_returns', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_return: varchar('no_return', { length: 50 }).notNull().unique(),
+  receiving_id: uuid('receiving_id').notNull().references(() => receivings.id),
+  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+  return_date: date('return_date').notNull(),
+  reason: text('reason'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  ...timestamps,
+})
+
+export const purchaseReturnItems = pgTable('purchase_return_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  return_id: uuid('return_id').notNull().references(() => purchaseReturns.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  stock_layer_id: uuid('stock_layer_id').notNull().references(() => stockLayers.id),
+  qty_return: decimal('qty_return', { precision: 18, scale: 4 }).notNull(),
+  ...timestamps,
+})
+
+// ============================================================
+// §5.4 Stock Transfer & Adjustment
+// ============================================================
+
+export const stockTransfers = pgTable('stock_transfers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_transfer: varchar('no_transfer', { length: 50 }).notNull().unique(),
+  from_warehouse_id: uuid('from_warehouse_id').notNull().references(() => warehouses.id),
+  to_warehouse_id: uuid('to_warehouse_id').notNull().references(() => warehouses.id),
+  transfer_date: date('transfer_date').notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  ...timestamps,
+})
+
+export const stockTransferItems = pgTable('stock_transfer_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  transfer_id: uuid('transfer_id').notNull().references(() => stockTransfers.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  stock_layer_id: uuid('stock_layer_id').notNull().references(() => stockLayers.id),
+  qty: decimal('qty', { precision: 18, scale: 4 }).notNull(),
+  ...timestamps,
+})
+
+export const stockAdjustments = pgTable('stock_adjustments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_adjustment: varchar('no_adjustment', { length: 50 }).notNull().unique(),
+  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+  adjustment_date: date('adjustment_date').notNull(),
+  reason: text('reason'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  ...timestamps,
+})
+
+export const stockAdjustmentItems = pgTable('stock_adjustment_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  adjustment_id: uuid('adjustment_id').notNull().references(() => stockAdjustments.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  qty_diff: decimal('qty_diff', { precision: 18, scale: 4 }).notNull(),
+  hpp: decimal('hpp', { precision: 18, scale: 4 }),
+  ...timestamps,
+})
