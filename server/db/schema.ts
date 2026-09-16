@@ -499,3 +499,69 @@ export const stockAdjustmentItems = pgTable('stock_adjustment_items', {
   hpp: decimal('hpp', { precision: 18, scale: 4 }),
   ...timestamps,
 })
+
+// ============================================================
+// §5.3 Sale
+// ============================================================
+
+export const saleOrders = pgTable('sale_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_so: varchar('no_so', { length: 50 }).notNull().unique(),
+  customer_id: uuid('customer_id').notNull().references(() => customers.id),
+  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+  order_date: date('order_date').notNull(),
+  use_do: boolean('use_do').notNull().default(false),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  created_by: uuid('created_by').notNull().references(() => users.id),
+  ...timestamps,
+})
+
+export const saleOrderItems = pgTable('sale_order_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  so_id: uuid('so_id').notNull().references(() => saleOrders.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  qty_order: decimal('qty_order', { precision: 18, scale: 4 }).notNull(),
+  sell_price: decimal('sell_price', { precision: 18, scale: 2 }).notNull(),
+  qty_delivered: decimal('qty_delivered', { precision: 18, scale: 4 }).notNull().default('0'),
+  ...timestamps,
+})
+
+export const deliveryOrders = pgTable('delivery_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_do: varchar('no_do', { length: 50 }).notNull().unique(),
+  so_id: uuid('so_id').notNull().references(() => saleOrders.id),
+  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+  delivery_date: date('delivery_date').notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  ...timestamps,
+})
+
+export const deliveryOrderItems = pgTable('delivery_order_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  do_id: uuid('do_id').notNull().references(() => deliveryOrders.id),
+  so_item_id: uuid('so_item_id').notNull().references(() => saleOrderItems.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  qty_delivered: decimal('qty_delivered', { precision: 18, scale: 4 }).notNull(),
+  cogs_per_unit: decimal('cogs_per_unit', { precision: 18, scale: 4 }),
+  ...timestamps,
+})
+
+export const saleReturns = pgTable('sale_returns', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_return: varchar('no_return', { length: 50 }).notNull().unique(),
+  source_type: varchar('source_type', { length: 10 }).notNull(),
+  source_id: uuid('source_id').notNull(),
+  return_date: date('return_date').notNull(),
+  condition: varchar('condition', { length: 10 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  ...timestamps,
+})
+
+export const saleReturnItems = pgTable('sale_return_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  return_id: uuid('return_id').notNull().references(() => saleReturns.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
+  qty_return: decimal('qty_return', { precision: 18, scale: 4 }).notNull(),
+  restore_hpp: decimal('restore_hpp', { precision: 18, scale: 4 }),
+  ...timestamps,
+})

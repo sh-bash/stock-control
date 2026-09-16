@@ -1,7 +1,13 @@
 import { and, eq, sql } from 'drizzle-orm'
+import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { products, stockLayers, stockSummary, warehouses } from '../db/schema'
 import { resolveEffectiveSettings } from '../repositories/product-stock-settings.repository'
+import {
+  consumeLayersFifo,
+  decrementStockSummaryGuarded,
+  insertLedgerEntry,
+} from '../repositories/stock.repository'
 import { createNotification } from './notification.service'
 
 interface LayerAggregate {
@@ -90,6 +96,54 @@ export async function rebuildStockSummary() {
   })
 
   return results
+}
+
+// Implements PRD §6.1 consumeStock — the CORE FIFO consumption function
+// shared by every stock-out path that doesn't target a specific layer (sale
+// order without DO, delivery order, and — from Fase 4 — negative stock
+// adjustments via consumeLayersFifo directly). Takes the caller's
+// transaction so the layer decrements, stock_summary decrement and ledger
+// entry commit atomically together with whatever document status change
+// triggered it. Returns cogs_per_unit = weighted-average cost of the layers
+// actually consumed, exactly as §6.1 specifies (total_cogs / qty_needed).
+export async function consumeStock(
+  tx: PgTransaction<any, any, any>,
+  params: {
+    product_id: string
+    warehouse_id: string
+    qty_needed: number
+    transaction_type: string
+    reference_type: string
+    reference_id: string
+    reference_no?: string | null
+    transaction_date?: Date
+  },
+): Promise<number> {
+  const consumption = await consumeLayersFifo(tx, params.product_id, params.warehouse_id, params.qty_needed)
+  const cogsPerUnit = consumption.totalCost / params.qty_needed
+
+  const summary = await decrementStockSummaryGuarded(tx, {
+    product_id: params.product_id,
+    warehouse_id: params.warehouse_id,
+    qty: params.qty_needed.toString(),
+    value: consumption.totalCost.toString(),
+  })
+
+  await insertLedgerEntry(tx, {
+    product_id: params.product_id,
+    warehouse_id: params.warehouse_id,
+    transaction_type: params.transaction_type,
+    reference_type: params.reference_type,
+    reference_id: params.reference_id,
+    reference_no: params.reference_no ?? null,
+    transaction_date: params.transaction_date ?? new Date(),
+    qty_out: params.qty_needed.toString(),
+    hpp_used: cogsPerUnit.toString(),
+    running_balance_qty: summary.qty_on_hand,
+    running_balance_value: summary.total_value,
+  })
+
+  return cogsPerUnit
 }
 
 // Implements PRD §6.7's "ON stock_summary updated" trigger: resolve the

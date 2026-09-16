@@ -58,6 +58,67 @@ export async function upsertStockSummaryOnReceive(
   return rows[0]
 }
 
+// Reserves qty against a product+warehouse (§6.4: SO confirm with use_do)
+// without touching qty_on_hand — same atomic upsert-on-conflict shape as
+// upsertStockSummaryOnReceive, for the same reason: two concurrent SO
+// confirms reserving against a brand-new product+warehouse must not race a
+// check-then-insert.
+export async function incrementReservedQty(
+  tx: Tx,
+  params: { product_id: string; warehouse_id: string; qty: string },
+) {
+  const rows = await tx
+    .insert(stockSummary)
+    .values({
+      product_id: params.product_id,
+      warehouse_id: params.warehouse_id,
+      qty_on_hand: '0',
+      qty_reserved: params.qty,
+      qty_available: (-Number(params.qty)).toString(),
+      total_value: '0',
+    })
+    .onConflictDoUpdate({
+      target: [stockSummary.product_id, stockSummary.warehouse_id],
+      set: {
+        qty_reserved: sql`${stockSummary.qty_reserved} + excluded.qty_reserved`,
+        qty_available: sql`${stockSummary.qty_on_hand} - (${stockSummary.qty_reserved} + excluded.qty_reserved)`,
+        updated_at: new Date(),
+      },
+    })
+    .returning()
+  return rows[0]
+}
+
+// Atomic guarded decrement of qty_reserved (DO approved: the reservation
+// made at SO confirm is released as the goods actually leave). Same
+// WHERE-guarded-UPDATE shape as decrementStockSummaryGuarded so it can never
+// drive qty_reserved negative under concurrent DOs against the same SO.
+export async function decrementReservedQtyGuarded(
+  tx: Tx,
+  params: { product_id: string; warehouse_id: string; qty: string },
+) {
+  const rows = await tx
+    .update(stockSummary)
+    .set({
+      qty_reserved: sql`${stockSummary.qty_reserved} - ${params.qty}`,
+      qty_available: sql`${stockSummary.qty_on_hand} - (${stockSummary.qty_reserved} - ${params.qty})`,
+      updated_at: new Date(),
+    })
+    .where(
+      and(
+        eq(stockSummary.product_id, params.product_id),
+        eq(stockSummary.warehouse_id, params.warehouse_id),
+        gte(sql`${stockSummary.qty_reserved} - ${params.qty}`, sql`0`),
+      ),
+    )
+    .returning()
+
+  if (!rows[0]) {
+    return failure('qty_reserved tidak cukup untuk dilepas sejumlah ini', 'INSUFFICIENT_RESERVED', 400)
+  }
+  return rows[0]
+}
+
 // Row-locks a single stock_layer for a targeted decrement (purchase return
 // against a specific receiving layer, or the source side of a transfer).
 export async function getLayerForUpdate(tx: Tx, layerId: string) {
