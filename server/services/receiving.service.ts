@@ -16,6 +16,7 @@ import { incrementQtyReceived, findItem as findPoItem } from '../repositories/pu
 import { recalculatePurchaseOrderStatus } from './purchase-order.service'
 import { findShipmentItem } from '../repositories/shipment.repository'
 import { createStockLayer, insertLedgerEntry, upsertStockSummaryOnReceive } from '../repositories/stock.repository'
+import { checkAndNotifyStockThreshold } from './stock.service'
 import { failure } from '../utils/response'
 
 export interface CreateReceivingItemInput {
@@ -170,13 +171,20 @@ export async function approveReceiving(receivingId: string, approverId: string, 
     return null
   })
 
-  // PO status recalculation reads/writes purchase_orders independently of
-  // the receiving transaction above (it's a derived, idempotent projection),
-  // so it's fine — and safer — to run it after that transaction has
-  // committed rather than nesting it inside.
+  // PO status recalculation and the min_stock/reorder_point notification
+  // check both read/write independently of the receiving transaction above
+  // (they're derived, idempotent projections over the now-committed data),
+  // so it's fine — and safer — to run them after that transaction has
+  // committed rather than nesting them inside.
   if (affectedPoIds) {
     for (const poId of affectedPoIds) {
       await recalculatePurchaseOrderStatus(poId)
+    }
+
+    const items = await listReceivingItems(receivingId)
+    const affectedProducts = new Set(items.map((i) => i.product_id))
+    for (const productId of affectedProducts) {
+      await checkAndNotifyStockThreshold(productId, receiving.warehouse_id)
     }
   }
 

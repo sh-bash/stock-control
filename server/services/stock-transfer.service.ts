@@ -15,6 +15,7 @@ import {
   insertLedgerEntry,
   upsertStockSummaryOnReceive,
 } from '../repositories/stock.repository'
+import { checkAndNotifyStockThreshold } from './stock.service'
 import { failure } from '../utils/response'
 
 export interface CreateTransferItemInput {
@@ -134,6 +135,15 @@ export async function createAndExecuteTransfer(input: {
 
     await updateTransferTx(tx, transfer.id, { status: 'completed' })
   })
+
+  // Notification check runs after commit, against both sides of the move —
+  // a transfer can push the source warehouse below its threshold even
+  // though the destination warehouse just gained stock.
+  const affectedProducts = new Set(input.items.map((i) => i.product_id))
+  for (const productId of affectedProducts) {
+    await checkAndNotifyStockThreshold(productId, input.from_warehouse_id)
+    await checkAndNotifyStockThreshold(productId, input.to_warehouse_id)
+  }
 
   return getTransferWithItems(transfer.id)
 }

@@ -15,6 +15,7 @@ const navItems = [
   { to: '/master/customers', label: 'Customers' },
   { to: '/master/expeditions', label: 'Expeditions' },
   { to: '/settings/global-stock', label: 'Global Stock Settings' },
+  { to: '/settings/product-stock-settings', label: 'Product Stock Settings' },
   { to: '/purchase/orders', label: 'Purchase Orders' },
   { to: '/purchase/shipments', label: 'Shipments' },
   { to: '/purchase/receivings', label: 'Receivings' },

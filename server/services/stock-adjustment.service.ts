@@ -18,6 +18,7 @@ import {
   insertLedgerEntry,
   upsertStockSummaryOnReceive,
 } from '../repositories/stock.repository'
+import { checkAndNotifyStockThreshold } from './stock.service'
 import { failure } from '../utils/response'
 
 export interface CreateAdjustmentItemInput {
@@ -179,13 +180,24 @@ export async function approveAdjustment(adjustmentId: string, approverId: string
   const instance = await findInstanceByDocument('adjustment', adjustmentId)
   if (!instance) return failure('Approval instance untuk adjustment ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  await db.transaction(async (tx) => {
+  const wasExecuted = await db.transaction(async (tx) => {
     const updatedInstance = await approveInstance(instance.id, approverId, note, tx)
 
     if (updatedInstance.status === 'approved') {
       await executeAdjustment(tx, adjustmentId)
+      return true
     }
+
+    return false
   })
+
+  if (wasExecuted) {
+    const items = await listAdjustmentItems(adjustmentId)
+    const affectedProducts = new Set(items.map((i) => i.product_id))
+    for (const productId of affectedProducts) {
+      await checkAndNotifyStockThreshold(productId, adjustment.warehouse_id)
+    }
+  }
 
   return getAdjustmentWithItems(adjustmentId)
 }

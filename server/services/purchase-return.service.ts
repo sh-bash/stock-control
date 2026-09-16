@@ -18,6 +18,7 @@ import {
   insertLedgerEntry,
 } from '../repositories/stock.repository'
 import { findReceiving } from '../repositories/receiving.repository'
+import { checkAndNotifyStockThreshold } from './stock.service'
 import { failure } from '../utils/response'
 
 export interface CreatePurchaseReturnItemInput {
@@ -160,13 +161,24 @@ export async function approvePurchaseReturn(returnId: string, approverId: string
   const instance = await findInstanceByDocument('purchase_return', returnId)
   if (!instance) return failure('Approval instance untuk purchase return ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  await db.transaction(async (tx) => {
+  const wasExecuted = await db.transaction(async (tx) => {
     const updatedInstance = await approveInstance(instance.id, approverId, note, tx)
 
     if (updatedInstance.status === 'approved') {
       await executePurchaseReturn(tx, returnId)
+      return true
     }
+
+    return false
   })
+
+  if (wasExecuted) {
+    const items = await listReturnItems(returnId)
+    const affectedProducts = new Set(items.map((i) => i.product_id))
+    for (const productId of affectedProducts) {
+      await checkAndNotifyStockThreshold(productId, ret.warehouse_id)
+    }
+  }
 
   return getPurchaseReturnWithItems(returnId)
 }

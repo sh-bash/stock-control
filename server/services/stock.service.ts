@@ -1,6 +1,8 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { db } from '../db/client'
-import { stockLayers, stockSummary } from '../db/schema'
+import { products, stockLayers, stockSummary, warehouses } from '../db/schema'
+import { resolveEffectiveSettings } from '../repositories/product-stock-settings.repository'
+import { createNotification } from './notification.service'
 
 interface LayerAggregate {
   product_id: string
@@ -88,4 +90,61 @@ export async function rebuildStockSummary() {
   })
 
   return results
+}
+
+// Implements PRD §6.7's "ON stock_summary updated" trigger: resolve the
+// effective min_stock/reorder_point for this product+warehouse (per-field
+// fallback: specific override -> product-level override -> global — see
+// resolveEffectiveSettings) and fire a notification if qty_on_hand has
+// crossed either threshold. min_stock (danger) takes priority over
+// reorder_point (warning) when both are breached. Called after every stock
+// mutation (receiving, purchase return, transfer, adjustment) commits, for
+// each product+warehouse it touched — never from inside the mutation's own
+// transaction, so a notification is only ever sent for state that's
+// actually landed.
+export async function checkAndNotifyStockThreshold(productId: string, warehouseId: string) {
+  const [summary] = await db
+    .select()
+    .from(stockSummary)
+    .where(and(eq(stockSummary.product_id, productId), eq(stockSummary.warehouse_id, warehouseId)))
+
+  if (!summary) return
+
+  const settings = await resolveEffectiveSettings(productId, warehouseId)
+  if (!settings) return
+
+  const qtyOnHand = Number(summary.qty_on_hand)
+
+  let type: 'min_stock' | 'reorder_point' | null = null
+  let severity: 'danger' | 'warning' | null = null
+  let thresholdLabel = ''
+  let thresholdValue = ''
+
+  if (settings.min_stock != null && qtyOnHand <= Number(settings.min_stock)) {
+    type = 'min_stock'
+    severity = 'danger'
+    thresholdLabel = 'batas minimum'
+    thresholdValue = settings.min_stock
+  } else if (settings.reorder_point != null && qtyOnHand <= Number(settings.reorder_point)) {
+    type = 'reorder_point'
+    severity = 'warning'
+    thresholdLabel = 'reorder point'
+    thresholdValue = settings.reorder_point
+  }
+
+  if (!type || !severity) return
+
+  const [product] = await db.select().from(products).where(eq(products.id, productId))
+  const [warehouse] = await db.select().from(warehouses).where(eq(warehouses.id, warehouseId))
+
+  await createNotification({
+    type,
+    severity,
+    title: `Stock ${product?.name ?? productId} mencapai ${thresholdLabel}`,
+    message: `Stock ${product?.sku ?? productId} di gudang ${warehouse?.name ?? warehouseId} tersisa ${qtyOnHand} (${thresholdLabel}: ${thresholdValue}).`,
+    reference_type: 'stock_summary',
+    reference_id: summary.id,
+    product_id: productId,
+    warehouse_id: warehouseId,
+  })
 }
