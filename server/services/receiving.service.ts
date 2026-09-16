@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import {
   createReceiving,
@@ -93,66 +94,63 @@ export async function submitReceiving(receivingId: string) {
 }
 
 // Implements PRD §6.2 receiveStock — executed once the receiving is fully
-// approved. Every stock_layer / stock_ledger / stock_summary write for the
-// whole receiving happens inside ONE DB transaction with row-level locks
-// (SELECT ... FOR UPDATE on stock_summary) so a partial failure never leaves
-// stock in an inconsistent state.
-async function receiveStock(receivingId: string) {
+// approved. Takes the caller's transaction (see approveReceiving) instead of
+// opening its own, so the approval-instance status flip and every
+// stock_layer / stock_ledger / stock_summary write commit-or-rollback
+// together as one atomic unit. If this ran in a separate transaction from
+// approveInstance(), the instance could commit as 'approved' and then this
+// step fail — leaving the receiving permanently stuck in 'waiting_approval'
+// with no way to retry (the instance is no longer 'pending').
+async function receiveStock(tx: PgTransaction<any, any, any>, receivingId: string) {
   const receiving = await findReceiving(receivingId)
   if (!receiving) return failure('Receiving tidak ditemukan', 'NOT_FOUND', 404)
 
   const items = await listReceivingItems(receivingId)
   const affectedPoIds = new Set<string>()
 
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      const [layer] = await createStockLayer(tx, {
-        product_id: item.product_id,
-        warehouse_id: receiving.warehouse_id,
-        source_type: 'receiving',
-        source_id: receiving.id,
-        receive_date: receiving.receive_date,
-        qty_original: item.qty_received,
-        qty_remaining: item.qty_received,
-        hpp: item.hpp,
-      })
+  for (const item of items) {
+    const [layer] = await createStockLayer(tx, {
+      product_id: item.product_id,
+      warehouse_id: receiving.warehouse_id,
+      source_type: 'receiving',
+      source_id: receiving.id,
+      receive_date: receiving.receive_date,
+      qty_original: item.qty_received,
+      qty_remaining: item.qty_received,
+      hpp: item.hpp,
+    })
 
-      const value = (Number(item.qty_received) * Number(item.hpp)).toString()
-      const summary = await upsertStockSummaryOnReceive(tx, {
-        product_id: item.product_id,
-        warehouse_id: receiving.warehouse_id,
-        qty: item.qty_received,
-        value,
-      })
+    const value = (Number(item.qty_received) * Number(item.hpp)).toString()
+    const summary = await upsertStockSummaryOnReceive(tx, {
+      product_id: item.product_id,
+      warehouse_id: receiving.warehouse_id,
+      qty: item.qty_received,
+      value,
+    })
 
-      await insertLedgerEntry(tx, {
-        product_id: item.product_id,
-        warehouse_id: receiving.warehouse_id,
-        transaction_type: 'receiving',
-        reference_type: 'receiving',
-        reference_id: receiving.id,
-        reference_no: receiving.no_receiving,
-        transaction_date: new Date(),
-        qty_in: item.qty_received,
-        hpp_used: item.hpp,
-        running_balance_qty: summary!.qty_on_hand,
-        running_balance_value: summary!.total_value,
-      })
+    await insertLedgerEntry(tx, {
+      product_id: item.product_id,
+      warehouse_id: receiving.warehouse_id,
+      transaction_type: 'receiving',
+      reference_type: 'receiving',
+      reference_id: receiving.id,
+      reference_no: receiving.no_receiving,
+      transaction_date: new Date(),
+      qty_in: item.qty_received,
+      hpp_used: item.hpp,
+      running_balance_qty: summary!.qty_on_hand,
+      running_balance_value: summary!.total_value,
+    })
 
-      await setReceivingItemLayer(tx, item.id, layer.id)
+    await setReceivingItemLayer(tx, item.id, layer.id)
 
-      const poItem = await incrementQtyReceived(tx, item.po_item_id, Number(item.qty_received))
-      if (poItem[0]) affectedPoIds.add(poItem[0].po_id)
-    }
-
-    await updateReceivingTx(tx, receivingId, { status: 'approved' })
-  })
-
-  for (const poId of affectedPoIds) {
-    await recalculatePurchaseOrderStatus(poId)
+    const poItem = await incrementQtyReceived(tx, item.po_item_id, Number(item.qty_received))
+    if (poItem[0]) affectedPoIds.add(poItem[0].po_id)
   }
 
-  return getReceivingWithItems(receivingId)
+  await updateReceivingTx(tx, receivingId, { status: 'approved' })
+
+  return affectedPoIds
 }
 
 export async function approveReceiving(receivingId: string, approverId: string, note?: string) {
@@ -162,10 +160,24 @@ export async function approveReceiving(receivingId: string, approverId: string, 
   const instance = await findInstanceByDocument('receiving', receivingId)
   if (!instance) return failure('Approval instance untuk receiving ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  const updatedInstance = await approveInstance(instance.id, approverId, note)
+  const affectedPoIds = await db.transaction(async (tx) => {
+    const updatedInstance = await approveInstance(instance.id, approverId, note, tx)
 
-  if (updatedInstance.status === 'approved') {
-    return receiveStock(receivingId)
+    if (updatedInstance.status === 'approved') {
+      return receiveStock(tx, receivingId)
+    }
+
+    return null
+  })
+
+  // PO status recalculation reads/writes purchase_orders independently of
+  // the receiving transaction above (it's a derived, idempotent projection),
+  // so it's fine — and safer — to run it after that transaction has
+  // committed rather than nesting it inside.
+  if (affectedPoIds) {
+    for (const poId of affectedPoIds) {
+      await recalculatePurchaseOrderStatus(poId)
+    }
   }
 
   return getReceivingWithItems(receivingId)
@@ -178,7 +190,9 @@ export async function rejectReceiving(receivingId: string, approverId: string, n
   const instance = await findInstanceByDocument('receiving', receivingId)
   if (!instance) return failure('Approval instance untuk receiving ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  await rejectInstance(instance.id, approverId, note)
-  const rows = await updateReceiving(receivingId, { status: 'rejected' })
-  return rows[0]
+  return db.transaction(async (tx) => {
+    await rejectInstance(instance.id, approverId, note, tx)
+    const rows = await updateReceivingTx(tx, receivingId, { status: 'rejected' })
+    return rows[0]
+  })
 }

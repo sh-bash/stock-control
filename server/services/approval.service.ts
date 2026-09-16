@@ -1,3 +1,4 @@
+import { db } from '../db/client'
 import {
   findActiveWorkflowByDocumentType,
   listSteps,
@@ -10,6 +11,12 @@ import {
 } from '../repositories/approval-instance.repository'
 import { findUserById } from '../repositories/user.repository'
 import { failure } from '../utils/response'
+
+// Derived from db.transaction's own callback parameter so it matches the
+// Executor type in approval-instance.repository.ts exactly (a generic
+// `PgTransaction<any, any, any>` erases the schema generic and breaks
+// `.query.*` typing there).
+type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 export async function createApprovalInstance(documentType: string, documentId: string) {
   const workflow = await findActiveWorkflowByDocumentType(documentType)
@@ -55,8 +62,20 @@ async function assertApprover(workflowId: string, stepOrder: number, approverUse
   return step
 }
 
-export async function approveInstance(instanceId: string, approverUserId: string, note?: string) {
-  const instance = await findInstance(instanceId)
+// `executor` lets a caller pass its own transaction handle so the instance's
+// status flip commits atomically together with whatever business mutation
+// it gates (e.g. stock-adjustment execution). Without this, the instance
+// could commit as 'approved' via a separate statement, then the business
+// transaction fails and rolls back — leaving the document permanently stuck
+// (instance no longer 'pending', so it can never be approved or rejected
+// again, but the document itself never advanced past 'waiting_approval').
+export async function approveInstance(
+  instanceId: string,
+  approverUserId: string,
+  note?: string,
+  executor: Executor = db,
+) {
+  const instance = await findInstance(instanceId, executor)
   if (!instance) return failure('Approval instance tidak ditemukan', 'NOT_FOUND', 404)
   if (instance.status !== 'pending') {
     return failure(`Approval instance sudah berstatus "${instance.status}"`, 'INSTANCE_NOT_PENDING', 400)
@@ -64,28 +83,40 @@ export async function approveInstance(instanceId: string, approverUserId: string
 
   const step = await assertApprover(instance.workflow_id, instance.current_step, approverUserId)
 
-  await createLog({
-    instance_id: instance.id,
-    step_order: instance.current_step,
-    approver_id: approverUserId,
-    action: 'approve',
-    note: note ?? null,
-    approved_at: new Date(),
-  })
+  await createLog(
+    {
+      instance_id: instance.id,
+      step_order: instance.current_step,
+      approver_id: approverUserId,
+      action: 'approve',
+      note: note ?? null,
+      approved_at: new Date(),
+    },
+    executor,
+  )
 
   const steps = await listSteps(instance.workflow_id)
   const isLastStep = instance.current_step >= steps.length
 
-  const rows = await updateInstance(instance.id, {
-    current_step: isLastStep ? instance.current_step : instance.current_step + 1,
-    status: isLastStep ? 'approved' : 'pending',
-  })
+  const rows = await updateInstance(
+    instance.id,
+    {
+      current_step: isLastStep ? instance.current_step : instance.current_step + 1,
+      status: isLastStep ? 'approved' : 'pending',
+    },
+    executor,
+  )
 
   return rows[0]
 }
 
-export async function rejectInstance(instanceId: string, approverUserId: string, note?: string) {
-  const instance = await findInstance(instanceId)
+export async function rejectInstance(
+  instanceId: string,
+  approverUserId: string,
+  note?: string,
+  executor: Executor = db,
+) {
+  const instance = await findInstance(instanceId, executor)
   if (!instance) return failure('Approval instance tidak ditemukan', 'NOT_FOUND', 404)
   if (instance.status !== 'pending') {
     return failure(`Approval instance sudah berstatus "${instance.status}"`, 'INSTANCE_NOT_PENDING', 400)
@@ -93,15 +124,18 @@ export async function rejectInstance(instanceId: string, approverUserId: string,
 
   await assertApprover(instance.workflow_id, instance.current_step, approverUserId)
 
-  await createLog({
-    instance_id: instance.id,
-    step_order: instance.current_step,
-    approver_id: approverUserId,
-    action: 'reject',
-    note: note ?? null,
-    approved_at: new Date(),
-  })
+  await createLog(
+    {
+      instance_id: instance.id,
+      step_order: instance.current_step,
+      approver_id: approverUserId,
+      action: 'reject',
+      note: note ?? null,
+      approved_at: new Date(),
+    },
+    executor,
+  )
 
-  const rows = await updateInstance(instance.id, { status: 'rejected' })
+  const rows = await updateInstance(instance.id, { status: 'rejected' }, executor)
   return rows[0]
 }

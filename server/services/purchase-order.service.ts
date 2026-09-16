@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { db } from '../db/client'
 import {
   createOrder,
   createItem,
   findOrder,
   listItems,
   updateOrder,
+  updateOrderTx,
 } from '../repositories/purchase-order.repository'
 import { findInstanceByDocument } from '../repositories/approval-instance.repository'
 import { createApprovalInstance, approveInstance, rejectInstance } from './approval.service'
@@ -71,6 +73,11 @@ export async function submitPurchaseOrder(poId: string) {
   return { po: rows[0], approval_instance: instance }
 }
 
+// The approval-instance status flip and the PO's own status flip are done
+// inside ONE transaction. Without this, approveInstance() could commit the
+// instance as 'approved' on its own, then a later failure updating the PO
+// would leave the instance permanently 'approved' (un-retryable) while the
+// PO stays stuck in 'waiting_approval' forever.
 export async function approvePurchaseOrder(poId: string, approverId: string, note?: string) {
   const po = await findOrder(poId)
   if (!po) return failure('PO tidak ditemukan', 'NOT_FOUND', 404)
@@ -78,14 +85,16 @@ export async function approvePurchaseOrder(poId: string, approverId: string, not
   const instance = await findInstanceByDocument('po', poId)
   if (!instance) return failure('Approval instance untuk PO ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  const updatedInstance = await approveInstance(instance.id, approverId, note)
+  return db.transaction(async (tx) => {
+    const updatedInstance = await approveInstance(instance.id, approverId, note, tx)
 
-  if (updatedInstance.status === 'approved') {
-    const rows = await updateOrder(poId, { status: 'approved' })
-    return rows[0]
-  }
+    if (updatedInstance.status === 'approved') {
+      const rows = await updateOrderTx(tx, poId, { status: 'approved' })
+      return rows[0]
+    }
 
-  return po
+    return po
+  })
 }
 
 export async function rejectPurchaseOrder(poId: string, approverId: string, note?: string) {
@@ -95,9 +104,11 @@ export async function rejectPurchaseOrder(poId: string, approverId: string, note
   const instance = await findInstanceByDocument('po', poId)
   if (!instance) return failure('Approval instance untuk PO ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  await rejectInstance(instance.id, approverId, note)
-  const rows = await updateOrder(poId, { status: 'rejected' })
-  return rows[0]
+  return db.transaction(async (tx) => {
+    await rejectInstance(instance.id, approverId, note, tx)
+    const rows = await updateOrderTx(tx, poId, { status: 'rejected' })
+    return rows[0]
+  })
 }
 
 export async function recalculatePurchaseOrderStatus(poId: string) {

@@ -32,6 +32,14 @@ export function updateOrder(id: string, values: Record<string, unknown>) {
     .returning()
 }
 
+export function updateOrderTx(tx: Tx, id: string, values: Record<string, unknown>) {
+  return tx
+    .update(purchaseOrders)
+    .set({ ...values, updated_at: new Date() })
+    .where(eq(purchaseOrders.id, id))
+    .returning()
+}
+
 export function deleteOrder(id: string) {
   return db.delete(purchaseOrders).where(eq(purchaseOrders.id, id)).returning()
 }

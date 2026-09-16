@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import {
   createAdjustment,
@@ -86,88 +87,89 @@ export async function submitAdjustment(adjustmentId: string) {
   return { adjustment: rows[0], approval_instance: instance }
 }
 
-// Applies every item's qty_diff on final approval, inside ONE DB
-// transaction. Positive diffs create a brand-new stock_layer (source_type
-// 'adjustment', hpp as provided). Negative diffs have no specific layer
-// reference in the schema, so they consume active layers oldest-first
-// (FIFO, §6.1) — row-locked via consumeLayersFifo so concurrent negative
+// Applies every item's qty_diff on final approval. Takes the caller's
+// transaction (see approveAdjustment) instead of opening its own, so the
+// approval-instance status flip and every stock write commit-or-rollback
+// together — see the comment on receiveStock in receiving.service.ts for
+// why a separate transaction here would let a document get permanently
+// stuck between approval-instance and document status. Positive diffs
+// create a brand-new stock_layer (source_type 'adjustment', hpp as
+// provided). Negative diffs have no specific layer reference in the
+// schema, so they consume active layers oldest-first (FIFO, §6.1) —
+// row-locked via consumeLayersFifo so concurrent negative
 // adjustments/returns/transfers on the same product+warehouse serialize
 // instead of racing.
-async function executeAdjustment(adjustmentId: string) {
+async function executeAdjustment(tx: PgTransaction<any, any, any>, adjustmentId: string) {
   const adjustment = await findAdjustment(adjustmentId)
   if (!adjustment) return failure('Adjustment tidak ditemukan', 'NOT_FOUND', 404)
 
   const items = await listAdjustmentItems(adjustmentId)
 
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      const qtyDiff = Number(item.qty_diff)
+  for (const item of items) {
+    const qtyDiff = Number(item.qty_diff)
 
-      if (qtyDiff > 0) {
-        await createStockLayer(tx, {
-          product_id: item.product_id,
-          warehouse_id: adjustment.warehouse_id,
-          source_type: 'adjustment',
-          source_id: adjustment.id,
-          receive_date: adjustment.adjustment_date,
-          qty_original: qtyDiff.toString(),
-          qty_remaining: qtyDiff.toString(),
-          hpp: item.hpp!,
-        })
+    if (qtyDiff > 0) {
+      await createStockLayer(tx, {
+        product_id: item.product_id,
+        warehouse_id: adjustment.warehouse_id,
+        source_type: 'adjustment',
+        source_id: adjustment.id,
+        receive_date: adjustment.adjustment_date,
+        qty_original: qtyDiff.toString(),
+        qty_remaining: qtyDiff.toString(),
+        hpp: item.hpp!,
+      })
 
-        const value = (qtyDiff * Number(item.hpp)).toString()
-        const summary = await upsertStockSummaryOnReceive(tx, {
-          product_id: item.product_id,
-          warehouse_id: adjustment.warehouse_id,
-          qty: qtyDiff.toString(),
-          value,
-        })
+      const value = (qtyDiff * Number(item.hpp)).toString()
+      const summary = await upsertStockSummaryOnReceive(tx, {
+        product_id: item.product_id,
+        warehouse_id: adjustment.warehouse_id,
+        qty: qtyDiff.toString(),
+        value,
+      })
 
-        await insertLedgerEntry(tx, {
-          product_id: item.product_id,
-          warehouse_id: adjustment.warehouse_id,
-          transaction_type: 'adjustment',
-          reference_type: 'adjustment',
-          reference_id: adjustment.id,
-          reference_no: adjustment.no_adjustment,
-          transaction_date: new Date(),
-          qty_in: qtyDiff.toString(),
-          hpp_used: item.hpp,
-          running_balance_qty: summary.qty_on_hand,
-          running_balance_value: summary.total_value,
-        })
-      } else {
-        const qtyOut = Math.abs(qtyDiff)
-        const consumption = await consumeLayersFifo(tx, item.product_id, adjustment.warehouse_id, qtyOut)
-        const avgHpp = consumption.totalCost / qtyOut
+      await insertLedgerEntry(tx, {
+        product_id: item.product_id,
+        warehouse_id: adjustment.warehouse_id,
+        transaction_type: 'adjustment',
+        reference_type: 'adjustment',
+        reference_id: adjustment.id,
+        reference_no: adjustment.no_adjustment,
+        transaction_date: new Date(),
+        qty_in: qtyDiff.toString(),
+        hpp_used: item.hpp,
+        running_balance_qty: summary.qty_on_hand,
+        running_balance_value: summary.total_value,
+      })
+    } else {
+      const qtyOut = Math.abs(qtyDiff)
+      const consumption = await consumeLayersFifo(tx, item.product_id, adjustment.warehouse_id, qtyOut)
+      const avgHpp = consumption.totalCost / qtyOut
 
-        const summary = await decrementStockSummaryGuarded(tx, {
-          product_id: item.product_id,
-          warehouse_id: adjustment.warehouse_id,
-          qty: qtyOut.toString(),
-          value: consumption.totalCost.toString(),
-        })
+      const summary = await decrementStockSummaryGuarded(tx, {
+        product_id: item.product_id,
+        warehouse_id: adjustment.warehouse_id,
+        qty: qtyOut.toString(),
+        value: consumption.totalCost.toString(),
+      })
 
-        await insertLedgerEntry(tx, {
-          product_id: item.product_id,
-          warehouse_id: adjustment.warehouse_id,
-          transaction_type: 'adjustment',
-          reference_type: 'adjustment',
-          reference_id: adjustment.id,
-          reference_no: adjustment.no_adjustment,
-          transaction_date: new Date(),
-          qty_out: qtyOut.toString(),
-          hpp_used: avgHpp.toString(),
-          running_balance_qty: summary.qty_on_hand,
-          running_balance_value: summary.total_value,
-        })
-      }
+      await insertLedgerEntry(tx, {
+        product_id: item.product_id,
+        warehouse_id: adjustment.warehouse_id,
+        transaction_type: 'adjustment',
+        reference_type: 'adjustment',
+        reference_id: adjustment.id,
+        reference_no: adjustment.no_adjustment,
+        transaction_date: new Date(),
+        qty_out: qtyOut.toString(),
+        hpp_used: avgHpp.toString(),
+        running_balance_qty: summary.qty_on_hand,
+        running_balance_value: summary.total_value,
+      })
     }
+  }
 
-    await updateAdjustmentTx(tx, adjustmentId, { status: 'approved' })
-  })
-
-  return getAdjustmentWithItems(adjustmentId)
+  await updateAdjustmentTx(tx, adjustmentId, { status: 'approved' })
 }
 
 export async function approveAdjustment(adjustmentId: string, approverId: string, note?: string) {
@@ -177,11 +179,13 @@ export async function approveAdjustment(adjustmentId: string, approverId: string
   const instance = await findInstanceByDocument('adjustment', adjustmentId)
   if (!instance) return failure('Approval instance untuk adjustment ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  const updatedInstance = await approveInstance(instance.id, approverId, note)
+  await db.transaction(async (tx) => {
+    const updatedInstance = await approveInstance(instance.id, approverId, note, tx)
 
-  if (updatedInstance.status === 'approved') {
-    return executeAdjustment(adjustmentId)
-  }
+    if (updatedInstance.status === 'approved') {
+      await executeAdjustment(tx, adjustmentId)
+    }
+  })
 
   return getAdjustmentWithItems(adjustmentId)
 }
@@ -193,7 +197,9 @@ export async function rejectAdjustment(adjustmentId: string, approverId: string,
   const instance = await findInstanceByDocument('adjustment', adjustmentId)
   if (!instance) return failure('Approval instance untuk adjustment ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  await rejectInstance(instance.id, approverId, note)
-  const rows = await updateAdjustment(adjustmentId, { status: 'rejected' })
-  return rows[0]
+  return db.transaction(async (tx) => {
+    await rejectInstance(instance.id, approverId, note, tx)
+    const rows = await updateAdjustmentTx(tx, adjustmentId, { status: 'rejected' })
+    return rows[0]
+  })
 }

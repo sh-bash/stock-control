@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import {
   createReturn,
@@ -105,51 +106,51 @@ export async function submitPurchaseReturn(returnId: string) {
 
 // Executes the actual stock mutation (decrement the specific referenced
 // layer + stock_summary + ledger entry) once the return is fully approved.
-// Runs inside ONE DB transaction with a row lock on each referenced layer.
-async function executePurchaseReturn(returnId: string) {
+// Takes the caller's transaction (see approvePurchaseReturn) so the
+// approval-instance status flip and every stock write commit-or-rollback
+// together — see the comment on receiveStock in receiving.service.ts for
+// why a separate transaction here would let a document get permanently
+// stuck between approval-instance and document status.
+async function executePurchaseReturn(tx: PgTransaction<any, any, any>, returnId: string) {
   const ret = await findReturn(returnId)
   if (!ret) return failure('Purchase return tidak ditemukan', 'NOT_FOUND', 404)
 
   const items = await listReturnItems(returnId)
 
-  await db.transaction(async (tx) => {
-    for (const item of items) {
-      const layer = await getLayerForUpdate(tx, item.stock_layer_id)
-      if (!layer) return failure('stock_layer tidak ditemukan', 'NOT_FOUND', 404)
-      if (Number(layer.qty_remaining) < Number(item.qty_return)) {
-        return failure('qty_return melebihi qty_remaining pada stock_layer saat ini', 'INSUFFICIENT_STOCK', 400)
-      }
-
-      const newRemaining = (Number(layer.qty_remaining) - Number(item.qty_return)).toString()
-      await decrementLayerQty(tx, layer.id, newRemaining)
-
-      const value = (Number(item.qty_return) * Number(layer.hpp)).toString()
-      const summary = await decrementStockSummaryGuarded(tx, {
-        product_id: item.product_id,
-        warehouse_id: ret.warehouse_id,
-        qty: item.qty_return,
-        value,
-      })
-
-      await insertLedgerEntry(tx, {
-        product_id: item.product_id,
-        warehouse_id: ret.warehouse_id,
-        transaction_type: 'purchase_return',
-        reference_type: 'purchase_return',
-        reference_id: ret.id,
-        reference_no: ret.no_return,
-        transaction_date: new Date(),
-        qty_out: item.qty_return,
-        hpp_used: layer.hpp,
-        running_balance_qty: summary.qty_on_hand,
-        running_balance_value: summary.total_value,
-      })
+  for (const item of items) {
+    const layer = await getLayerForUpdate(tx, item.stock_layer_id)
+    if (!layer) return failure('stock_layer tidak ditemukan', 'NOT_FOUND', 404)
+    if (Number(layer.qty_remaining) < Number(item.qty_return)) {
+      return failure('qty_return melebihi qty_remaining pada stock_layer saat ini', 'INSUFFICIENT_STOCK', 400)
     }
 
-    await updateReturnTx(tx, returnId, { status: 'approved' })
-  })
+    const newRemaining = (Number(layer.qty_remaining) - Number(item.qty_return)).toString()
+    await decrementLayerQty(tx, layer.id, newRemaining)
 
-  return getPurchaseReturnWithItems(returnId)
+    const value = (Number(item.qty_return) * Number(layer.hpp)).toString()
+    const summary = await decrementStockSummaryGuarded(tx, {
+      product_id: item.product_id,
+      warehouse_id: ret.warehouse_id,
+      qty: item.qty_return,
+      value,
+    })
+
+    await insertLedgerEntry(tx, {
+      product_id: item.product_id,
+      warehouse_id: ret.warehouse_id,
+      transaction_type: 'purchase_return',
+      reference_type: 'purchase_return',
+      reference_id: ret.id,
+      reference_no: ret.no_return,
+      transaction_date: new Date(),
+      qty_out: item.qty_return,
+      hpp_used: layer.hpp,
+      running_balance_qty: summary.qty_on_hand,
+      running_balance_value: summary.total_value,
+    })
+  }
+
+  await updateReturnTx(tx, returnId, { status: 'approved' })
 }
 
 export async function approvePurchaseReturn(returnId: string, approverId: string, note?: string) {
@@ -159,11 +160,13 @@ export async function approvePurchaseReturn(returnId: string, approverId: string
   const instance = await findInstanceByDocument('purchase_return', returnId)
   if (!instance) return failure('Approval instance untuk purchase return ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  const updatedInstance = await approveInstance(instance.id, approverId, note)
+  await db.transaction(async (tx) => {
+    const updatedInstance = await approveInstance(instance.id, approverId, note, tx)
 
-  if (updatedInstance.status === 'approved') {
-    return executePurchaseReturn(returnId)
-  }
+    if (updatedInstance.status === 'approved') {
+      await executePurchaseReturn(tx, returnId)
+    }
+  })
 
   return getPurchaseReturnWithItems(returnId)
 }
@@ -175,7 +178,9 @@ export async function rejectPurchaseReturn(returnId: string, approverId: string,
   const instance = await findInstanceByDocument('purchase_return', returnId)
   if (!instance) return failure('Approval instance untuk purchase return ini tidak ditemukan', 'NO_APPROVAL_INSTANCE', 400)
 
-  await rejectInstance(instance.id, approverId, note)
-  const rows = await updateReturn(returnId, { status: 'rejected' })
-  return rows[0]
+  return db.transaction(async (tx) => {
+    await rejectInstance(instance.id, approverId, note, tx)
+    const rows = await updateReturnTx(tx, returnId, { status: 'rejected' })
+    return rows[0]
+  })
 }
