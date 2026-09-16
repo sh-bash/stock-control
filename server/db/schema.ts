@@ -565,3 +565,42 @@ export const saleReturnItems = pgTable('sale_return_items', {
   restore_hpp: decimal('restore_hpp', { precision: 18, scale: 4 }),
   ...timestamps,
 })
+
+// ============================================================
+// §5.5 Analytics (Computed)
+// ============================================================
+
+export const productMovementStats = pgTable(
+  'product_movement_stats',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+    avg_daily_out_qty_30d: decimal('avg_daily_out_qty_30d', { precision: 18, scale: 4 }),
+    avg_daily_out_qty_90d: decimal('avg_daily_out_qty_90d', { precision: 18, scale: 4 }),
+    last_movement_date: date('last_movement_date'),
+    days_since_last_movement: integer('days_since_last_movement'),
+    calculated_at: timestamp('calculated_at'),
+    ...timestamps,
+  },
+  (table) => [
+    // Recomputed in place every run (a pure snapshot, not an accumulating
+    // log) — the job upserts on this key so re-running it is idempotent.
+    unique('product_movement_stats_product_warehouse_unique').on(table.product_id, table.warehouse_id),
+  ],
+)
+
+export const movementClassification = pgTable(
+  'movement_classification',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+    classification: varchar('classification', { length: 10 }).notNull(),
+    calculated_at: timestamp('calculated_at'),
+    ...timestamps,
+  },
+  (table) => [
+    unique('movement_classification_product_warehouse_unique').on(table.product_id, table.warehouse_id),
+  ],
+)

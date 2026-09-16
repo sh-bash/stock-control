@@ -26,6 +26,7 @@ const navItems = [
   { to: '/stock/overview', label: 'Stock Overview' },
   { to: '/stock/transfers', label: 'Stock Transfers' },
   { to: '/stock/adjustments', label: 'Stock Adjustments' },
+  { to: '/jobs/dashboard', label: 'Scheduled Jobs' },
   { to: '/approval/workflows', label: 'Approval Workflows' },
   { to: '/approval/inbox', label: 'Approval Inbox' },
   { to: '/notifications/rules', label: 'Notification Rules' },

@@ -247,6 +247,11 @@ export function listStockLayers(productId?: string, warehouseId?: string) {
   return conditions.length > 0 ? query.where(and(...conditions)) : query
 }
 
+// Every currently-sellable layer, for the aging-check job to walk.
+export function listActiveLayers() {
+  return db.select().from(stockLayers).where(and(eq(stockLayers.status, 'active'), gt(stockLayers.qty_remaining, '0')))
+}
+
 export function listStockLedger(productId?: string, warehouseId?: string) {
   const conditions = []
   if (productId) conditions.push(eq(stockLedger.product_id, productId))

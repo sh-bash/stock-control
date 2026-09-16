@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray } from 'drizzle-orm'
 import { db } from '../db/client'
 import {
   notifications,
@@ -8,6 +8,29 @@ import {
   notificationSettings,
   users,
 } from '../db/schema'
+
+// Dedup guard for jobs that re-evaluate the same condition every run (aging
+// check): has a notification of this type+reference already been created
+// since `sinceDate`? Used to skip re-notifying on a run that finds nothing
+// changed, so a daily job (or two manual triggers back to back) doesn't
+// spam a fresh notification for a layer that's been over threshold for
+// days.
+export async function findRecentNotification(
+  type: string,
+  referenceType: string,
+  referenceId: string,
+  sinceDate: Date,
+) {
+  const row = await db.query.notifications.findFirst({
+    where: and(
+      eq(notifications.type, type),
+      eq(notifications.reference_type, referenceType),
+      eq(notifications.reference_id, referenceId),
+      gte(notifications.created_at, sinceDate),
+    ),
+  })
+  return row ?? null
+}
 
 export function createNotification(values: {
   type: string

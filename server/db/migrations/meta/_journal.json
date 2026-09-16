@@ -43,6 +43,13 @@
       "when": 1789561755372,
       "tag": "0005_lazy_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789562645194,
+      "tag": "0006_aspiring_riptide",
+      "breakpoints": true
     }
   ]
 }
