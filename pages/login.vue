@@ -20,7 +20,7 @@ async function handleSubmit() {
       body: { email: email.value, password: password.value },
     })
     auth.setSession(res.data.accessToken, res.data.refreshToken, res.data.user)
-    router.push('/master/warehouses')
+    router.push('/dashboard')
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Login gagal'
   } finally {

@@ -2,6 +2,14 @@
 
 Nuxt 3 + Drizzle ORM + PostgreSQL. Full spec: [`docs/PRD.md`](docs/PRD.md).
 
+## 0. User Documentation
+
+This README covers developer setup. For how to actually **use** the system:
+
+- [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — full written manual (Bahasa Indonesia), operational + admin sections.
+- In-app **Bantuan / Panduan** page (`/help`) — condensed, on-screen version with direct links into each module.
+- In-app **guided tour** — auto-plays once on first login; replay anytime via the "?" button in the topbar or the "Mulai Tour Interaktif" button on `/help`.
+
 ## 1. Prerequisites
 
 - Node.js 18+
