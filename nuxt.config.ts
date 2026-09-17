@@ -6,6 +6,9 @@ export default defineNuxtConfig({
   nitro: {
     experimental: { tasks: true },
     scheduledTasks: {
+      // Daily at 00:30 — inventory valuation snapshot, ahead of the other
+      // daily jobs so classification/aging run against the freshest day
+      '30 0 * * *': ['stock-valuation-snapshot'],
       // Daily at 01:00 — movement classification (§6.5) and aging check
       '0 1 * * *': ['movement-classification', 'aging-check'],
       // Weekly, Sunday 02:00 — stock reconciliation

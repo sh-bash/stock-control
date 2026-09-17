@@ -604,3 +604,26 @@ export const movementClassification = pgTable(
     unique('movement_classification_product_warehouse_unique').on(table.product_id, table.warehouse_id),
   ],
 )
+
+// §5.4 stock_valuation_snapshot — populated by the Fase 8
+// stock-valuation-snapshot.job.ts (daily), read by
+// /api/v1/reports/inventory-valuation.
+export const stockValuationSnapshot = pgTable(
+  'stock_valuation_snapshot',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    snapshot_date: date('snapshot_date').notNull(),
+    product_id: uuid('product_id').notNull().references(() => products.id),
+    warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
+    qty_on_hand: decimal('qty_on_hand', { precision: 18, scale: 4 }).notNull(),
+    total_value: decimal('total_value', { precision: 18, scale: 4 }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    unique('stock_valuation_snapshot_date_product_warehouse_unique').on(
+      table.snapshot_date,
+      table.product_id,
+      table.warehouse_id,
+    ),
+  ],
+)
