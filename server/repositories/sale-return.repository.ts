@@ -2,11 +2,33 @@ import { and, eq } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { saleReturns, saleReturnItems, saleOrderItems, deliveryOrderItems, stockLedger } from '../db/schema'
+import { listPaged, type PagedListOptions } from '../utils/crud'
 
 type Tx = PgTransaction<any, any, any>
 
+const SORT_COLUMNS: Record<string, any> = {
+  no_return: saleReturns.no_return,
+  return_date: saleReturns.return_date,
+  status: saleReturns.status,
+}
+
 export function listReturns() {
   return db.select().from(saleReturns)
+}
+
+export function listReturnsPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; condition?: string },
+) {
+  const extraFilters = []
+  if (opts.status) extraFilters.push({ column: saleReturns.status, value: opts.status })
+  if (opts.condition) extraFilters.push({ column: saleReturns.condition, value: opts.condition })
+  return listPaged(saleReturns, {
+    ...opts,
+    searchColumns: [saleReturns.no_return],
+    sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || saleReturns.return_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
 }
 
 export function findReturn(id: string) {

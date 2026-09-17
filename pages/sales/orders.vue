@@ -20,36 +20,60 @@ interface So {
   items?: SoItem[]
 }
 
-const orders = ref<So[]>([])
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'partial_delivered', label: 'Partial Delivered' },
+  { value: 'closed', label: 'Closed' },
+]
+
+const rows = ref<So[]>([])
+const totalRows = ref(0)
 const customers = ref<Customer[]>([])
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
-const expanded = ref<Record<string, So | null>>({})
 
-const form = ref({
-  customer_id: '',
-  warehouse_id: '',
-  order_date: new Date().toISOString().slice(0, 10),
-  use_do: false,
-  items: [{ product_id: '', qty_order: 1, sell_price: 0 }],
-})
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const statusFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'order_date', direction: 'desc' })
 
-async function loadAll() {
+const columns = [
+  { key: 'no_so', label: 'No SO', sortable: true },
+  { key: 'customer_id', label: 'Customer' },
+  { key: 'warehouse_id', label: 'Warehouse' },
+  { key: 'use_do', label: 'use_do' },
+  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+]
+
+async function loadMasters() {
+  const [c, w, p] = await Promise.all([
+    useApi<Customer[]>('/customers'),
+    useApi<Warehouse[]>('/warehouses'),
+    useApi<Product[]>('/products'),
+  ])
+  customers.value = c
+  warehouses.value = w
+  products.value = p
+}
+
+async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [o, c, w, p] = await Promise.all([
-      useApi<So[]>('/sale-orders'),
-      useApi<Customer[]>('/customers'),
-      useApi<Warehouse[]>('/warehouses'),
-      useApi<Product[]>('/products'),
-    ])
-    orders.value = o.sort((a, b) => b.no_so.localeCompare(a.no_so))
-    customers.value = c
-    warehouses.value = w
-    products.value = p
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<So[]>(`/sale-orders?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -57,47 +81,25 @@ async function loadAll() {
   }
 }
 
-function addItemRow() {
-  form.value.items.push({ product_id: '', qty_order: 1, sell_price: 0 })
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
 }
-function removeItemRow(idx: number) {
-  form.value.items.splice(idx, 1)
-}
-
-async function createSo() {
-  errorMsg.value = ''
-  try {
-    await useApi('/sale-orders', { method: 'POST', body: form.value })
-    form.value = {
-      customer_id: '',
-      warehouse_id: '',
-      order_date: new Date().toISOString().slice(0, 10),
-      use_do: false,
-      items: [{ product_id: '', qty_order: 1, sell_price: 0 }],
-    }
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat SO'
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'status') {
+    statusFilter.value = value
+    page.value = 1
+    load()
   }
 }
-
-async function toggleExpand(so: So) {
-  if (expanded.value[so.id]) {
-    expanded.value[so.id] = null
-    return
-  }
-  const detail = await useApi<So>(`/sale-orders/${so.id}`)
-  expanded.value[so.id] = detail
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
 }
-
-async function confirmSo(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/sale-orders/${id}/confirm`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal confirm SO'
-  }
+function onPageChange(p: number) {
+  page.value = p
+  load()
 }
 
 function customerName(id: string) {
@@ -110,124 +112,224 @@ function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
   return p ? `${p.sku} - ${p.name}` : id
 }
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('id-ID').format(n)
+}
 
-onMounted(loadAll)
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+function emptyForm() {
+  return {
+    customer_id: '',
+    warehouse_id: '',
+    order_date: new Date().toISOString().slice(0, 10),
+    use_do: false,
+    items: [{ product_id: '', qty_order: null as number | null, sell_price: null as number | null }],
+  }
+}
+const form = ref(emptyForm())
+
+function openCreateModal() {
+  form.value = emptyForm()
+  createError.value = ''
+  showCreateModal.value = true
+}
+function addItemRow() {
+  form.value.items.push({ product_id: '', qty_order: null, sell_price: null })
+}
+function removeItemRow(idx: number) {
+  form.value.items.splice(idx, 1)
+}
+function itemSubtotal(item: { qty_order: number | null; sell_price: number | null }) {
+  return (item.qty_order ?? 0) * (item.sell_price ?? 0)
+}
+const formTotal = computed(() => form.value.items.reduce((sum, i) => sum + itemSubtotal(i), 0))
+
+async function createSo() {
+  createError.value = ''
+  creating.value = true
+  try {
+    await useApi('/sale-orders', { method: 'POST', body: form.value })
+    showCreateModal.value = false
+    page.value = 1
+    await load()
+  } catch (err: any) {
+    createError.value = err?.data?.data?.message || 'Gagal membuat SO'
+  } finally {
+    creating.value = false
+  }
+}
+
+// --- detail modal ---
+const showDetailModal = ref(false)
+const detailSo = ref<So | null>(null)
+async function openDetail(so: So) {
+  detailSo.value = await useApi<So>(`/sale-orders/${so.id}`)
+  showDetailModal.value = true
+}
+
+// --- confirm action ---
+const confirmState = ref<{ show: boolean; title: string; message: string; loading: boolean; run: (() => Promise<void>) | null }>({
+  show: false, title: '', message: '', loading: false, run: null,
+})
+function askConfirmSo(so: So) {
+  confirmState.value = {
+    show: true,
+    title: 'Confirm Sale Order?',
+    message: so.use_do
+      ? `${so.no_so} akan di-confirm — stok akan direservasi (belum keluar fisik). Buat Delivery Order untuk mengeluarkan barang.`
+      : `${so.no_so} akan di-confirm — stok akan langsung berkurang (FIFO) dan transaksi selesai.`,
+    loading: false,
+    run: async () => {
+      await useApi(`/sale-orders/${so.id}/confirm`, { method: 'POST' })
+      await load()
+    },
+  }
+}
+async function runConfirmedAction() {
+  if (!confirmState.value.run) return
+  confirmState.value.loading = true
+  try {
+    await confirmState.value.run()
+    confirmState.value.show = false
+  } catch (err: any) {
+    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
+    confirmState.value.show = false
+  } finally {
+    confirmState.value.loading = false
+  }
+}
+
+onMounted(async () => {
+  await loadMasters()
+  await load()
+})
 </script>
 
 <template>
   <div>
     <h1>Sale Orders</h1>
     <p class="hint">
-      use_do=false: stock langsung berkurang saat confirm. use_do=true: hanya reserved saat confirm,
+      use_do=tidak: stock langsung berkurang saat confirm. use_do=ya: hanya reserved saat confirm,
       buat Delivery Order untuk mengeluarkan fisik.
     </p>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="create-form" @submit.prevent="createSo">
-      <div class="row">
-        <label>
-          Customer
-          <select v-model="form.customer_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-        </label>
-        <label>
-          Warehouse
-          <select v-model="form.warehouse_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </label>
-        <label>
-          Order Date
-          <input v-model="form.order_date" type="date" required />
-        </label>
-        <label class="checkbox-label">
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      search-placeholder="Cari No SO..."
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat SO</BaseButton>
+      </template>
+      <template #cell-no_so="{ row }">
+        <button class="link-cell" @click="openDetail(row)">{{ row.no_so }}</button>
+      </template>
+      <template #cell-customer_id="{ value }">{{ customerName(value) }}</template>
+      <template #cell-warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+      <template #cell-use_do="{ value }">{{ value ? 'Ya' : 'Tidak' }}</template>
+      <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Detail</BaseButton>
+        <BaseButton v-if="row.status === 'draft'" size="sm" @click="askConfirmSo(row)">Confirm</BaseButton>
+      </template>
+    </BaseDataTable>
+
+    <BaseModal v-model="showCreateModal" title="Buat Sale Order" size="fullscreen">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect v-model="form.customer_id" label="Customer" required :options="customers.map((c) => ({ value: c.id, label: c.name }))" />
+        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseDatePicker v-model="form.order_date" label="Order Date" required />
+        <label class="checkbox-field">
           <input v-model="form.use_do" type="checkbox" />
           Pakai Delivery Order (use_do)
         </label>
       </div>
 
-      <table class="item-table">
-        <thead><tr><th>Product</th><th>Qty</th><th>Sell Price</th><th></th></tr></thead>
+      <table class="line-items-table">
+        <thead><tr><th>Produk</th><th class="col-narrow">Qty</th><th class="col-narrow">Sell Price</th><th class="col-narrow">Subtotal</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td>
-              <select v-model="item.product_id" required>
-                <option value="">-- pilih produk --</option>
-                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} - {{ p.name }}</option>
-              </select>
-            </td>
-            <td><input v-model.number="item.qty_order" type="number" step="any" min="0.0001" required /></td>
-            <td><input v-model.number="item.sell_price" type="number" step="any" min="0" required /></td>
-            <td><button type="button" class="link danger" @click="removeItemRow(idx)">Hapus</button></td>
+            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.qty_order" required /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.sell_price" required /></td>
+            <td class="col-narrow subtotal-cell">Rp {{ fmtCurrency(itemSubtotal(item)) }}</td>
+            <td><BaseButton variant="ghost" size="sm" @click="removeItemRow(idx)">Hapus</BaseButton></td>
           </tr>
         </tbody>
+        <tfoot>
+          <tr><td colspan="3" class="total-label">Total</td><td colspan="2" class="total-value">Rp {{ fmtCurrency(formTotal) }}</td></tr>
+        </tfoot>
       </table>
-      <button type="button" class="secondary" @click="addItemRow">+ Tambah Item</button>
-      <button type="submit">Buat SO</button>
-    </form>
+      <BaseButton variant="secondary" size="sm" @click="addItemRow">+ Tambah Item</BaseButton>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="so-table">
-      <thead>
-        <tr><th>No SO</th><th>Customer</th><th>Warehouse</th><th>use_do</th><th>Status</th><th>Aksi</th></tr>
-      </thead>
-      <tbody>
-        <template v-for="so in orders" :key="so.id">
-          <tr>
-            <td><button class="link" @click="toggleExpand(so)">{{ so.no_so }}</button></td>
-            <td>{{ customerName(so.customer_id) }}</td>
-            <td>{{ warehouseName(so.warehouse_id) }}</td>
-            <td>{{ so.use_do ? 'Ya' : 'Tidak' }}</td>
-            <td><span class="status" :class="`status-${so.status}`">{{ so.status }}</span></td>
-            <td>
-              <button v-if="so.status === 'draft'" class="approve" @click="confirmSo(so.id)">Confirm</button>
-            </td>
-          </tr>
-          <tr v-if="expanded[so.id]">
-            <td colspan="6">
-              <table class="detail-table">
-                <thead><tr><th>Product</th><th>Qty Order</th><th>Sell Price</th><th>Qty Delivered</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in expanded[so.id]?.items" :key="item.id">
-                    <td>{{ productLabel(item.product_id) }}</td>
-                    <td>{{ item.qty_order }}</td>
-                    <td>{{ item.sell_price }}</td>
-                    <td>{{ item.qty_delivered }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-        <tr v-if="orders.length === 0"><td colspan="6">Belum ada SO</td></tr>
-      </tbody>
-    </table>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" @click="createSo">Buat SO</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseModal v-model="showDetailModal" title="Detail Sale Order" size="lg">
+      <div v-if="detailSo" class="detail-body">
+        <div class="detail-meta">
+          <div><strong>No SO:</strong> {{ detailSo.no_so }}</div>
+          <div><strong>Customer:</strong> {{ customerName(detailSo.customer_id) }}</div>
+          <div><strong>Warehouse:</strong> {{ warehouseName(detailSo.warehouse_id) }}</div>
+          <div><strong>use_do:</strong> {{ detailSo.use_do ? 'Ya' : 'Tidak' }}</div>
+          <div><strong>Status:</strong> <BaseBadge :status="detailSo.status" /></div>
+        </div>
+        <table class="line-items-table">
+          <thead><tr><th>Produk</th><th>Qty Order</th><th>Sell Price</th><th>Qty Delivered</th></tr></thead>
+          <tbody>
+            <tr v-for="item in detailSo.items" :key="item.id">
+              <td>{{ productLabel(item.product_id) }}</td>
+              <td>{{ item.qty_order }}</td>
+              <td>{{ item.sell_price }}</td>
+              <td>{{ item.qty_delivered }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseConfirmDialog
+      v-model="confirmState.show"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      confirm-text="Ya, Confirm"
+      :loading="confirmState.loading"
+      @confirm="runConfirmedAction"
+    />
   </div>
 </template>
 
 <style scoped>
-.hint { font-size: 13px; color: #64748b; margin-bottom: 12px; }
-.create-form { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
-.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-.row label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.checkbox-label { flex-direction: row !important; align-items: center; gap: 6px !important; }
-input, select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-.item-table, .so-table, .detail-table { width: 100%; border-collapse: collapse; }
-.item-table th, .item-table td, .so-table th, .so-table td, .detail-table th, .detail-table td {
-  text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px;
-}
-.so-table { background: #fff; border-radius: 8px; overflow: hidden; }
-.detail-table { background: #f8fafc; }
-button { padding: 8px 14px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; align-self: flex-start; }
-button.secondary { background: #94a3b8; }
-button.link { background: none; color: #2563eb; padding: 2px 6px; }
-button.link.danger { color: #dc2626; }
-button.approve { background: #16a34a; }
-.status { padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e2e8f0; }
-.status-confirmed, .status-closed { background: #dcfce7; color: #16a34a; }
-.status-partial_delivered { background: #fef3c7; color: #b45309; }
-.error { color: #dc2626; }
+.hint { font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px; }
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; align-items: end; }
+.checkbox-field { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.link-cell { background: none; border: none; color: var(--color-info); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.line-items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.line-items-table th { text-align: left; font-size: 12px; color: var(--color-text-muted); padding: 6px 8px; }
+.line-items-table td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid var(--color-neutral-bg); }
+.col-narrow { width: 150px; }
+.subtotal-cell { padding-top: 12px; font-size: 13px; font-weight: 600; }
+.total-label { text-align: right; font-weight: 600; padding-top: 12px; }
+.total-value { font-weight: 700; padding-top: 12px; }
+.detail-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; font-size: 13px; }
 </style>

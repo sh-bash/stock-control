@@ -19,36 +19,62 @@ interface SaleReturn {
   items?: SaleReturnItem[]
 }
 
-const returns = ref<SaleReturn[]>([])
-const saleOrders = ref<So[]>([])
-const deliveryOrders = ref<DeliveryOrder[]>([])
+const CONDITION_OPTIONS = [
+  { value: 'good', label: 'Good' },
+  { value: 'damaged', label: 'Damaged' },
+]
+
+const rows = ref<SaleReturn[]>([])
+const totalRows = ref(0)
+const allSaleOrders = ref<So[]>([])
+const allDeliveryOrders = ref<DeliveryOrder[]>([])
+const eligibleSaleOrders = ref<So[]>([])
+const eligibleDeliveryOrders = ref<DeliveryOrder[]>([])
 const products = ref<Product[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
-const expanded = ref<Record<string, SaleReturn | null>>({})
 
-const form = ref({
-  source_type: 'do' as 'so' | 'do',
-  source_id: '',
-  return_date: new Date().toISOString().slice(0, 10),
-  condition: 'good' as 'good' | 'damaged',
-  items: [{ product_id: '', qty_return: 1 }],
-})
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const conditionFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'return_date', direction: 'desc' })
 
-async function loadAll() {
+const columns = [
+  { key: 'no_return', label: 'No Return', sortable: true },
+  { key: 'source_id', label: 'Source' },
+  { key: 'return_date', label: 'Return Date', sortable: true },
+  { key: 'condition', label: 'Condition', filterOptions: CONDITION_OPTIONS },
+  { key: 'status', label: 'Status' },
+]
+
+async function loadMasters() {
+  const [so, d, p] = await Promise.all([
+    useApi<So[]>('/sale-orders'),
+    useApi<DeliveryOrder[]>('/delivery-orders'),
+    useApi<Product[]>('/products'),
+  ])
+  allSaleOrders.value = so
+  allDeliveryOrders.value = d
+  eligibleSaleOrders.value = so.filter((s) => s.status === 'closed' || s.status === 'partial_delivered')
+  eligibleDeliveryOrders.value = d.filter((x) => x.status === 'approved')
+  products.value = p
+}
+
+async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [r, so, d, p] = await Promise.all([
-      useApi<SaleReturn[]>('/sale-returns'),
-      useApi<So[]>('/sale-orders'),
-      useApi<DeliveryOrder[]>('/delivery-orders'),
-      useApi<Product[]>('/products'),
-    ])
-    returns.value = r.sort((a, b) => b.no_return.localeCompare(a.no_return))
-    saleOrders.value = so.filter((s) => s.status === 'closed' || s.status === 'partial_delivered')
-    deliveryOrders.value = d.filter((x) => x.status === 'approved')
-    products.value = p
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (conditionFilter.value) params.set('condition', conditionFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<SaleReturn[]>(`/sale-returns?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -56,49 +82,90 @@ async function loadAll() {
   }
 }
 
-function addItemRow() {
-  form.value.items.push({ product_id: '', qty_return: 1 })
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
 }
-function removeItemRow(idx: number) {
-  form.value.items.splice(idx, 1)
-}
-
-async function createReturn() {
-  errorMsg.value = ''
-  try {
-    await useApi('/sale-returns', { method: 'POST', body: form.value })
-    form.value = {
-      source_type: 'do',
-      source_id: '',
-      return_date: new Date().toISOString().slice(0, 10),
-      condition: 'good',
-      items: [{ product_id: '', qty_return: 1 }],
-    }
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat sale return'
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'condition') {
+    conditionFilter.value = value
+    page.value = 1
+    load()
   }
 }
-
-async function toggleExpand(ret: SaleReturn) {
-  if (expanded.value[ret.id]) {
-    expanded.value[ret.id] = null
-    return
-  }
-  const detail = await useApi<SaleReturn>(`/sale-returns/${ret.id}`)
-  expanded.value[ret.id] = detail
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
+}
+function onPageChange(p: number) {
+  page.value = p
+  load()
 }
 
 function sourceLabel(ret: SaleReturn) {
-  if (ret.source_type === 'do') return deliveryOrders.value.find((d) => d.id === ret.source_id)?.no_do || ret.source_id
-  return saleOrders.value.find((s) => s.id === ret.source_id)?.no_so || ret.source_id
+  if (ret.source_type === 'do') return allDeliveryOrders.value.find((d) => d.id === ret.source_id)?.no_do || ret.source_id
+  return allSaleOrders.value.find((s) => s.id === ret.source_id)?.no_so || ret.source_id
 }
 function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
   return p ? `${p.sku} - ${p.name}` : id
 }
 
-onMounted(loadAll)
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+function emptyForm() {
+  return {
+    source_type: 'do' as 'so' | 'do',
+    source_id: '',
+    return_date: new Date().toISOString().slice(0, 10),
+    condition: 'good' as 'good' | 'damaged',
+    items: [{ product_id: '', qty_return: null as number | null }],
+  }
+}
+const form = ref(emptyForm())
+
+function openCreateModal() {
+  form.value = emptyForm()
+  createError.value = ''
+  showCreateModal.value = true
+}
+function addItemRow() {
+  form.value.items.push({ product_id: '', qty_return: null })
+}
+function removeItemRow(idx: number) {
+  form.value.items.splice(idx, 1)
+}
+
+async function createReturn() {
+  createError.value = ''
+  creating.value = true
+  try {
+    await useApi('/sale-returns', { method: 'POST', body: form.value })
+    showCreateModal.value = false
+    page.value = 1
+    await load()
+  } catch (err: any) {
+    createError.value = err?.data?.data?.message || 'Gagal membuat sale return'
+  } finally {
+    creating.value = false
+  }
+}
+
+// --- detail modal ---
+const showDetailModal = ref(false)
+const detailReturn = ref<SaleReturn | null>(null)
+async function openDetail(ret: SaleReturn) {
+  detailReturn.value = await useApi<SaleReturn>(`/sale-returns/${ret.id}`)
+  showDetailModal.value = true
+}
+
+onMounted(async () => {
+  await loadMasters()
+  await load()
+})
 </script>
 
 <template>
@@ -110,113 +177,104 @@ onMounted(loadAll)
     </p>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="create-form" @submit.prevent="createReturn">
-      <div class="row">
-        <label>
-          Source Type
-          <select v-model="form.source_type">
-            <option value="do">Delivery Order</option>
-            <option value="so">Sale Order (tanpa DO)</option>
-          </select>
-        </label>
-        <label>
-          Source
-          <select v-model="form.source_id" required>
-            <option value="">-- pilih --</option>
-            <template v-if="form.source_type === 'do'">
-              <option v-for="d in deliveryOrders" :key="d.id" :value="d.id">{{ d.no_do }}</option>
-            </template>
-            <template v-else>
-              <option v-for="s in saleOrders" :key="s.id" :value="s.id">{{ s.no_so }}</option>
-            </template>
-          </select>
-        </label>
-        <label>
-          Return Date
-          <input v-model="form.return_date" type="date" required />
-        </label>
-        <label>
-          Condition
-          <select v-model="form.condition">
-            <option value="good">Good (restock)</option>
-            <option value="damaged">Damaged (terpisah)</option>
-          </select>
-        </label>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      search-placeholder="Cari No Return..."
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat Sale Return</BaseButton>
+      </template>
+      <template #cell-no_return="{ row }">
+        <button class="link-cell" @click="openDetail(row)">{{ row.no_return }}</button>
+      </template>
+      <template #cell-source_id="{ row }">{{ row.source_type.toUpperCase() }}: {{ sourceLabel(row) }}</template>
+      <template #cell-condition="{ value }"><BaseBadge :status="value" /></template>
+      <template #cell-status="{ value }"><BaseBadge tone="info" :status="value" /></template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Detail</BaseButton>
+      </template>
+    </BaseDataTable>
+
+    <BaseModal v-model="showCreateModal" title="Buat Sale Return" size="lg">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect
+          v-model="form.source_type"
+          label="Source Type"
+          :options="[{ value: 'do', label: 'Delivery Order' }, { value: 'so', label: 'Sale Order (tanpa DO)' }]"
+        />
+        <BaseSelect
+          v-model="form.source_id"
+          label="Source"
+          required
+          :options="form.source_type === 'do' ? eligibleDeliveryOrders.map((d) => ({ value: d.id, label: d.no_do })) : eligibleSaleOrders.map((s) => ({ value: s.id, label: s.no_so }))"
+        />
+        <BaseDatePicker v-model="form.return_date" label="Return Date" required />
+        <BaseSelect v-model="form.condition" label="Condition" :options="[{ value: 'good', label: 'Good (restock)' }, { value: 'damaged', label: 'Damaged (terpisah)' }]" />
       </div>
 
-      <table class="item-table">
-        <thead><tr><th>Product</th><th>Qty Return</th><th></th></tr></thead>
+      <table class="line-items-table">
+        <thead><tr><th>Product</th><th class="col-narrow">Qty Return</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td>
-              <select v-model="item.product_id" required>
-                <option value="">-- pilih produk --</option>
-                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} - {{ p.name }}</option>
-              </select>
-            </td>
-            <td><input v-model.number="item.qty_return" type="number" step="any" min="0.0001" required /></td>
-            <td><button type="button" class="link danger" @click="removeItemRow(idx)">Hapus</button></td>
+            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.qty_return" required /></td>
+            <td><BaseButton variant="ghost" size="sm" @click="removeItemRow(idx)">Hapus</BaseButton></td>
           </tr>
         </tbody>
       </table>
-      <button type="button" class="secondary" @click="addItemRow">+ Tambah Item</button>
-      <button type="submit">Buat & Proses Sale Return</button>
-    </form>
+      <BaseButton variant="secondary" size="sm" @click="addItemRow">+ Tambah Item</BaseButton>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="ret-table">
-      <thead><tr><th>No Return</th><th>Source</th><th>Return Date</th><th>Condition</th><th>Status</th></tr></thead>
-      <tbody>
-        <template v-for="ret in returns" :key="ret.id">
-          <tr>
-            <td><button class="link" @click="toggleExpand(ret)">{{ ret.no_return }}</button></td>
-            <td>{{ ret.source_type.toUpperCase() }}: {{ sourceLabel(ret) }}</td>
-            <td>{{ ret.return_date }}</td>
-            <td>
-              <span class="status" :class="ret.condition === 'good' ? 'status-good' : 'status-damaged'">{{ ret.condition }}</span>
-            </td>
-            <td><span class="status status-processed">{{ ret.status }}</span></td>
-          </tr>
-          <tr v-if="expanded[ret.id]">
-            <td colspan="5">
-              <table class="detail-table">
-                <thead><tr><th>Product</th><th>Qty Return</th><th>Restore HPP</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in expanded[ret.id]?.items" :key="item.id">
-                    <td>{{ productLabel(item.product_id) }}</td>
-                    <td>{{ item.qty_return }}</td>
-                    <td>{{ item.restore_hpp ?? '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-        <tr v-if="returns.length === 0"><td colspan="5">Belum ada sale return</td></tr>
-      </tbody>
-    </table>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" @click="createReturn">Buat &amp; Proses Sale Return</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseModal v-model="showDetailModal" title="Detail Sale Return" size="lg">
+      <div v-if="detailReturn" class="detail-body">
+        <div class="detail-meta">
+          <div><strong>No Return:</strong> {{ detailReturn.no_return }}</div>
+          <div><strong>Source:</strong> {{ detailReturn.source_type.toUpperCase() }}: {{ sourceLabel(detailReturn) }}</div>
+          <div><strong>Return Date:</strong> {{ detailReturn.return_date }}</div>
+          <div><strong>Condition:</strong> <BaseBadge :status="detailReturn.condition" /></div>
+          <div><strong>Status:</strong> <BaseBadge tone="info" :status="detailReturn.status" /></div>
+        </div>
+        <table class="line-items-table">
+          <thead><tr><th>Product</th><th>Qty Return</th><th>Restore HPP</th></tr></thead>
+          <tbody>
+            <tr v-for="item in detailReturn.items" :key="item.id">
+              <td>{{ productLabel(item.product_id) }}</td>
+              <td>{{ item.qty_return }}</td>
+              <td>{{ item.restore_hpp ?? '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
 <style scoped>
-.hint { font-size: 13px; color: #64748b; margin-bottom: 12px; }
-.create-form { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
-.row { display: flex; gap: 12px; flex-wrap: wrap; }
-.row label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-input, select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-.item-table, .ret-table, .detail-table { width: 100%; border-collapse: collapse; }
-.item-table th, .item-table td, .ret-table th, .ret-table td, .detail-table th, .detail-table td {
-  text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px;
-}
-.ret-table { background: #fff; border-radius: 8px; overflow: hidden; }
-.detail-table { background: #f8fafc; }
-button { padding: 8px 14px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; align-self: flex-start; }
-button.secondary { background: #94a3b8; }
-button.link { background: none; color: #2563eb; padding: 2px 6px; }
-button.link.danger { color: #dc2626; }
-.status { padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e2e8f0; }
-.status-good { background: #dcfce7; color: #16a34a; }
-.status-damaged { background: #fee2e2; color: #dc2626; }
-.status-processed { background: #dbeafe; color: #1d4ed8; }
-.error { color: #dc2626; }
+.hint { font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px; }
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.link-cell { background: none; border: none; color: var(--color-info); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.line-items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.line-items-table th { text-align: left; font-size: 12px; color: var(--color-text-muted); padding: 6px 8px; }
+.line-items-table td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid var(--color-neutral-bg); }
+.col-narrow { width: 150px; }
+.detail-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; font-size: 13px; }
 </style>
