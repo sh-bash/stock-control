@@ -48,6 +48,66 @@ function warehouseName(id: string) {
   return warehouses.value.find((w) => w.id === id)?.name || id
 }
 
+// Client-side table state — this endpoint returns the full computed
+// projection array in one shot per warehouse filter (no backend
+// pagination), same rationale as the Reports page.
+const page = ref(1)
+const pageSize = 20
+const classificationFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: '', direction: null })
+
+// BaseDataTable keys rows by a single field — product_id alone can repeat
+// across warehouses, so give each row a synthetic composite id.
+const rowsWithId = computed(() => rows.value.map((r) => ({ ...r, _id: `${r.product_id}:${r.warehouse_id}` })))
+
+const filteredRows = computed(() =>
+  classificationFilter.value ? rowsWithId.value.filter((r) => r.classification === classificationFilter.value) : rowsWithId.value,
+)
+const sortedRows = computed(() => {
+  if (!sort.value.direction) return filteredRows.value
+  const { key, direction } = sort.value
+  return [...filteredRows.value].sort((a, b) => {
+    const av = (a as any)[key]
+    const bv = (b as any)[key]
+    const cmp = typeof av === 'number' ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''))
+    return direction === 'asc' ? cmp : -cmp
+  })
+})
+const pagedRows = computed(() => sortedRows.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+
+const columns = [
+  { key: 'product_id', label: 'Product' },
+  { key: 'warehouse_id', label: 'Warehouse' },
+  { key: 'qty_on_hand', label: 'Qty On Hand', sortable: true, align: 'right' as const },
+  { key: 'oldest_layer_age_days', label: 'Umur Layer Tertua (hari)', sortable: true, align: 'right' as const },
+  { key: 'avg_daily_out_qty_30d', label: 'Avg Out/Hari (30d)', sortable: true, align: 'right' as const },
+  { key: 'projected_days_to_zero', label: 'Proyeksi Habis' },
+  {
+    key: 'classification',
+    label: 'Classification',
+    filterOptions: [
+      { value: 'fast', label: 'Fast' },
+      { value: 'normal', label: 'Normal' },
+      { value: 'slow', label: 'Slow' },
+      { value: 'dead', label: 'Dead' },
+    ],
+  },
+]
+
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'classification') {
+    classificationFilter.value = value
+    page.value = 1
+  }
+}
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  page.value = 1
+}
+function onPageChange(p: number) {
+  page.value = p
+}
+
 onMounted(loadAll)
 </script>
 
@@ -55,54 +115,45 @@ onMounted(loadAll)
   <div>
     <div class="header-row">
       <h1>Stock Aging &amp; Projection</h1>
-      <select v-model="selectedWarehouse" @change="loadAll">
-        <option value="">Semua Warehouse</option>
-        <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-      </select>
+      <BaseSelect
+        v-model="selectedWarehouse"
+        placeholder="Semua Warehouse"
+        :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
+        @update:model-value="loadAll"
+      />
     </div>
     <p class="hint">
       projected_days_to_zero = qty_on_hand / avg_daily_out_qty_30d (§6.6). Dead stock (avg = 0) tidak punya proyeksi.
     </p>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
-    <p v-if="loading">Memuat...</p>
 
-    <table v-else class="data-table">
-      <thead>
-        <tr>
-          <th>Product</th><th>Warehouse</th><th>Qty On Hand</th><th>Umur Layer Tertua (hari)</th>
-          <th>Avg Out/Hari (30d)</th><th>Proyeksi Habis</th><th>Classification</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.product_id + row.warehouse_id">
-          <td>{{ productLabel(row.product_id) }}</td>
-          <td>{{ warehouseName(row.warehouse_id) }}</td>
-          <td>{{ row.qty_on_hand }}</td>
-          <td>{{ row.oldest_layer_age_days ?? '-' }}</td>
-          <td>{{ row.avg_daily_out_qty_30d ?? '-' }}</td>
-          <td>
-            <span v-if="row.projection_note" class="note-dead">{{ row.projection_note }}</span>
-            <span v-else>{{ row.projected_days_to_zero }} hari ({{ row.projected_zero_date }})</span>
-          </td>
-          <td><span class="badge" :class="`badge-${row.classification}`">{{ row.classification ?? '-' }}</span></td>
-        </tr>
-        <tr v-if="rows.length === 0"><td colspan="7">Tidak ada data</td></tr>
-      </tbody>
-    </table>
+    <BaseDataTable
+      :columns="columns"
+      :data="pagedRows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="filteredRows.length"
+      :searchable="false"
+      row-key="_id"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #cell-product_id="{ value }">{{ productLabel(value) }}</template>
+      <template #cell-warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+      <template #cell-projected_days_to_zero="{ row }">
+        <span v-if="row.projection_note" class="note-dead">{{ row.projection_note }}</span>
+        <span v-else>{{ row.projected_days_to_zero }} hari ({{ row.projected_zero_date }})</span>
+      </template>
+      <template #cell-classification="{ value }"><BaseBadge :status="value ?? '-'" /></template>
+    </BaseDataTable>
   </div>
 </template>
 
 <style scoped>
-.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.hint { font-size: 13px; color: #64748b; margin-bottom: 12px; }
-select { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
-.data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
-.data-table th, .data-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-.note-dead { color: #dc2626; font-size: 12px; }
-.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; background: #e2e8f0; }
-.badge-fast { background: #dcfce7; color: #16a34a; }
-.badge-normal { background: #dbeafe; color: #1d4ed8; }
-.badge-slow { background: #fef3c7; color: #b45309; }
-.badge-dead { background: #fee2e2; color: #dc2626; }
-.error { color: #dc2626; }
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+.hint { font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px; }
+.note-dead { color: var(--color-danger); font-size: 12px; }
+.error { color: var(--color-danger); }
 </style>

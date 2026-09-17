@@ -1,4 +1,9 @@
 <script setup lang="ts">
+// Report endpoints already return a fully-computed, pre-filtered result set
+// in one shot (they're aggregate views driven by the filter form above, not
+// raw unbounded tables) — so BaseDataTable here paginates/sorts CLIENT-side
+// over that already-small array, unlike the Master Data/Stock Ledger pages
+// which paginate server-side. CSV export works off the same filtered rows.
 interface Supplier { id: string; name: string }
 interface Customer { id: string; name: string }
 interface Warehouse { id: string; name: string }
@@ -86,9 +91,89 @@ function supplierName(id: string) {
 function customerName(id: string) {
   return customers.value.find((c) => c.id === id)?.name || id
 }
-
 function fmt(n: number) {
   return new Intl.NumberFormat('id-ID').format(n)
+}
+
+// --- generic client-side table state (paginate/sort over an already-fetched array) ---
+function useClientTable<T extends Record<string, any>>(source: () => T[]) {
+  const page = ref(1)
+  const pageSize = 20
+  const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: '', direction: null })
+
+  const sorted = computed(() => {
+    const rows = source()
+    if (!sort.value.direction) return rows
+    const { key, direction } = sort.value
+    return [...rows].sort((a, b) => {
+      const av = a[key]
+      const bv = b[key]
+      const cmp = typeof av === 'number' ? av - bv : String(av ?? '').localeCompare(String(bv ?? ''))
+      return direction === 'asc' ? cmp : -cmp
+    })
+  })
+  const paged = computed(() => sorted.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+
+  function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+    sort.value = s
+    page.value = 1
+  }
+  function onPageChange(p: number) {
+    page.value = p
+  }
+
+  return { page, pageSize, paged, totalRows: computed(() => source().length), onSortChange, onPageChange }
+}
+
+// --- CSV export ---
+function downloadCsv(filename: string, rows: Record<string, any>[]) {
+  if (rows.length === 0) return
+  const headers = Object.keys(rows[0])
+  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => escape(r[h])).join(','))].join('\n')
+  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const outstandingPoTable = useClientTable(() => purchaseData.value?.outstanding_purchase_orders ?? [])
+const priceHistoryTable = useClientTable(() => purchaseData.value?.price_history ?? [])
+const saleLinesTable = useClientTable(() => saleData.value?.lines ?? [])
+const valuationTable = useClientTable(() => valuationData.value?.snapshots ?? [])
+const mutationTable = useClientTable(() => mutationData.value?.entries ?? [])
+
+function exportOutstandingPo() {
+  downloadCsv('purchase-outstanding.csv', outstandingPoTable.totalRows.value > 0
+    ? (purchaseData.value.outstanding_purchase_orders as any[]).map((r) => ({
+        no_po: r.no_po, supplier: supplierName(r.supplier_id), order_date: r.order_date, status: r.status,
+        product: productLabel(r.product_id), qty_order: r.qty_order, qty_received: r.qty_received, remaining: r.remaining, unit_price: r.unit_price,
+      }))
+    : [])
+}
+function exportPriceHistory() {
+  downloadCsv('purchase-price-history.csv', (purchaseData.value?.price_history ?? []).map((r: any) => ({
+    product: productLabel(r.product_id), no_po: r.no_po, order_date: r.order_date, unit_price: r.unit_price, qty_order: r.qty_order,
+  })))
+}
+function exportSaleLines() {
+  downloadCsv('sale-lines.csv', (saleData.value?.lines ?? []).map((r: any) => ({
+    no_so: r.no_so, source: `${r.source_type.toUpperCase()}${r.no_do ? ' / ' + r.no_do : ''}`, customer: customerName(r.customer_id),
+    product: productLabel(r.product_id), qty: r.qty, sell_price: r.sell_price, cogs_per_unit: r.cogs_per_unit, revenue: r.revenue, cogs: r.cogs, margin: r.margin,
+  })))
+}
+function exportValuation() {
+  downloadCsv('inventory-valuation.csv', (valuationData.value?.snapshots ?? []).map((r: any) => ({
+    snapshot_date: r.snapshot_date, product: productLabel(r.product_id), warehouse: warehouseName(r.warehouse_id), qty_on_hand: r.qty_on_hand, total_value: r.total_value,
+  })))
+}
+function exportMutation() {
+  downloadCsv('stock-mutation.csv', (mutationData.value?.entries ?? []).map((r: any) => ({
+    date: r.transaction_date, type: r.transaction_type, qty_in: r.qty_in, qty_out: r.qty_out, hpp_used: r.hpp_used, balance_qty: r.running_balance_qty, balance_value: r.running_balance_value,
+  })))
 }
 
 onMounted(loadMasters)
@@ -107,108 +192,111 @@ onMounted(loadMasters)
     </div>
 
     <form class="filter-form" @submit.prevent="runReport">
-      <label v-if="tab === 'purchase'">
-        Supplier
-        <select v-model="filters.supplier_id">
-          <option value="">-- semua --</option>
-          <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
-        </select>
-      </label>
-      <label v-if="tab === 'sale'">
-        Customer
-        <select v-model="filters.customer_id">
-          <option value="">-- semua --</option>
-          <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-      </label>
-      <label v-if="tab !== 'purchase' || true">
-        Warehouse
-        <select v-model="filters.warehouse_id">
-          <option value="">-- semua --</option>
-          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-        </select>
-      </label>
-      <label>
-        Product {{ tab === 'mutation' ? '(wajib)' : '' }}
-        <select v-model="filters.product_id" :required="tab === 'mutation'">
-          <option value="">-- semua --</option>
-          <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} - {{ p.name }}</option>
-        </select>
-      </label>
-      <label>
-        Date From
-        <input v-model="filters.date_from" type="date" />
-      </label>
-      <label>
-        Date To
-        <input v-model="filters.date_to" type="date" />
-      </label>
-      <button type="submit">Run Report</button>
+      <BaseSelect v-if="tab === 'purchase'" v-model="filters.supplier_id" label="Supplier" placeholder="-- semua --" :options="suppliers.map((s) => ({ value: s.id, label: s.name }))" />
+      <BaseSelect v-if="tab === 'sale'" v-model="filters.customer_id" label="Customer" placeholder="-- semua --" :options="customers.map((c) => ({ value: c.id, label: c.name }))" />
+      <BaseSelect v-model="filters.warehouse_id" label="Warehouse" placeholder="-- semua --" :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+      <BaseSelect
+        v-model="filters.product_id"
+        :label="`Product ${tab === 'mutation' ? '(wajib)' : ''}`"
+        placeholder="-- semua --"
+        :required="tab === 'mutation'"
+        :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))"
+      />
+      <BaseDatePicker v-model="filters.date_from" label="Date From" />
+      <BaseDatePicker v-model="filters.date_to" label="Date To" />
+      <BaseButton type="submit" :loading="loading">Run Report</BaseButton>
     </form>
 
-    <p v-if="loading">Memuat...</p>
-
     <template v-if="tab === 'purchase' && purchaseData">
-      <h2>Outstanding Purchase Orders</h2>
-      <table class="data-table">
-        <thead><tr><th>No PO</th><th>Supplier</th><th>Order Date</th><th>Status</th><th>Product</th><th>Qty Order</th><th>Qty Received</th><th>Remaining</th><th>Unit Price</th></tr></thead>
-        <tbody>
-          <tr v-for="row in purchaseData.outstanding_purchase_orders" :key="row.item_id">
-            <td>{{ row.no_po }}</td>
-            <td>{{ supplierName(row.supplier_id) }}</td>
-            <td>{{ row.order_date }}</td>
-            <td>{{ row.status }}</td>
-            <td>{{ productLabel(row.product_id) }}</td>
-            <td>{{ row.qty_order }}</td>
-            <td>{{ row.qty_received }}</td>
-            <td>{{ row.remaining }}</td>
-            <td>{{ fmt(row.unit_price) }}</td>
-          </tr>
-          <tr v-if="purchaseData.outstanding_purchase_orders.length === 0"><td colspan="9">Tidak ada outstanding PO</td></tr>
-        </tbody>
-      </table>
+      <div class="section-header"><h2>Outstanding Purchase Orders</h2><BaseButton variant="secondary" size="sm" @click="exportOutstandingPo">Export CSV</BaseButton></div>
+      <BaseDataTable
+        :columns="[
+          { key: 'no_po', label: 'No PO', sortable: true },
+          { key: 'supplier_id', label: 'Supplier' },
+          { key: 'order_date', label: 'Order Date', sortable: true },
+          { key: 'status', label: 'Status' },
+          { key: 'product_id', label: 'Product' },
+          { key: 'qty_order', label: 'Qty Order', align: 'right' },
+          { key: 'qty_received', label: 'Qty Received', align: 'right' },
+          { key: 'remaining', label: 'Remaining', align: 'right' },
+          { key: 'unit_price', label: 'Unit Price', align: 'right' },
+        ]"
+        :data="outstandingPoTable.paged.value"
+        :page="outstandingPoTable.page.value"
+        :page-size="outstandingPoTable.pageSize"
+        :total-rows="outstandingPoTable.totalRows.value"
+        :searchable="false"
+        row-key="item_id"
+        @sort-change="outstandingPoTable.onSortChange"
+        @update:page="outstandingPoTable.onPageChange"
+      >
+        <template #cell-supplier_id="{ value }">{{ supplierName(value) }}</template>
+        <template #cell-product_id="{ value }">{{ productLabel(value) }}</template>
+        <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+        <template #cell-unit_price="{ value }">{{ fmt(value) }}</template>
+      </BaseDataTable>
 
-      <h2>Price History</h2>
-      <table class="data-table">
-        <thead><tr><th>Product</th><th>No PO</th><th>Order Date</th><th>Unit Price</th><th>Qty</th></tr></thead>
-        <tbody>
-          <tr v-for="row in purchaseData.price_history" :key="row.po_id + row.product_id">
-            <td>{{ productLabel(row.product_id) }}</td>
-            <td>{{ row.no_po }}</td>
-            <td>{{ row.order_date }}</td>
-            <td>{{ fmt(row.unit_price) }}</td>
-            <td>{{ row.qty_order }}</td>
-          </tr>
-          <tr v-if="purchaseData.price_history.length === 0"><td colspan="5">Tidak ada data</td></tr>
-        </tbody>
-      </table>
+      <div class="section-header"><h2>Price History</h2><BaseButton variant="secondary" size="sm" @click="exportPriceHistory">Export CSV</BaseButton></div>
+      <BaseDataTable
+        :columns="[
+          { key: 'product_id', label: 'Product' },
+          { key: 'no_po', label: 'No PO', sortable: true },
+          { key: 'order_date', label: 'Order Date', sortable: true },
+          { key: 'unit_price', label: 'Unit Price', align: 'right' },
+          { key: 'qty_order', label: 'Qty', align: 'right' },
+        ]"
+        :data="priceHistoryTable.paged.value"
+        :page="priceHistoryTable.page.value"
+        :page-size="priceHistoryTable.pageSize"
+        :total-rows="priceHistoryTable.totalRows.value"
+        :searchable="false"
+        row-key="po_id"
+        @sort-change="priceHistoryTable.onSortChange"
+        @update:page="priceHistoryTable.onPageChange"
+      >
+        <template #cell-product_id="{ value }">{{ productLabel(value) }}</template>
+        <template #cell-unit_price="{ value }">{{ fmt(value) }}</template>
+      </BaseDataTable>
     </template>
 
     <template v-if="tab === 'sale' && saleData">
-      <h2>Summary</h2>
       <div class="summary-box">
         <div>Total Revenue: <strong>{{ fmt(saleData.summary.total_revenue) }}</strong></div>
         <div>Total COGS: <strong>{{ fmt(saleData.summary.total_cogs) }}</strong></div>
         <div>Total Margin: <strong>{{ fmt(saleData.summary.total_margin) }}</strong></div>
       </div>
-      <table class="data-table">
-        <thead><tr><th>No SO</th><th>Source</th><th>Customer</th><th>Product</th><th>Qty</th><th>Sell Price</th><th>COGS/unit</th><th>Revenue</th><th>COGS</th><th>Margin</th></tr></thead>
-        <tbody>
-          <tr v-for="(row, i) in saleData.lines" :key="i">
-            <td>{{ row.no_so }}</td>
-            <td>{{ row.source_type.toUpperCase() }}{{ row.no_do ? ' / ' + row.no_do : '' }}</td>
-            <td>{{ customerName(row.customer_id) }}</td>
-            <td>{{ productLabel(row.product_id) }}</td>
-            <td>{{ row.qty }}</td>
-            <td>{{ fmt(row.sell_price) }}</td>
-            <td>{{ fmt(row.cogs_per_unit) }}</td>
-            <td>{{ fmt(row.revenue) }}</td>
-            <td>{{ fmt(row.cogs) }}</td>
-            <td>{{ fmt(row.margin) }}</td>
-          </tr>
-          <tr v-if="saleData.lines.length === 0"><td colspan="10">Tidak ada data</td></tr>
-        </tbody>
-      </table>
+      <div class="section-header"><h2>Line Detail</h2><BaseButton variant="secondary" size="sm" @click="exportSaleLines">Export CSV</BaseButton></div>
+      <BaseDataTable
+        :columns="[
+          { key: 'no_so', label: 'No SO', sortable: true },
+          { key: 'no_do', label: 'Source' },
+          { key: 'customer_id', label: 'Customer' },
+          { key: 'product_id', label: 'Product' },
+          { key: 'qty', label: 'Qty', align: 'right' },
+          { key: 'sell_price', label: 'Sell Price', align: 'right' },
+          { key: 'cogs_per_unit', label: 'COGS/unit', align: 'right' },
+          { key: 'revenue', label: 'Revenue', align: 'right', sortable: true },
+          { key: 'cogs', label: 'COGS', align: 'right' },
+          { key: 'margin', label: 'Margin', align: 'right', sortable: true },
+        ]"
+        :data="saleLinesTable.paged.value"
+        :page="saleLinesTable.page.value"
+        :page-size="saleLinesTable.pageSize"
+        :total-rows="saleLinesTable.totalRows.value"
+        :searchable="false"
+        row-key="so_id"
+        @sort-change="saleLinesTable.onSortChange"
+        @update:page="saleLinesTable.onPageChange"
+      >
+        <template #cell-no_do="{ row }">{{ row.source_type.toUpperCase() }}{{ row.no_do ? ' / ' + row.no_do : '' }}</template>
+        <template #cell-customer_id="{ value }">{{ customerName(value) }}</template>
+        <template #cell-product_id="{ value }">{{ productLabel(value) }}</template>
+        <template #cell-sell_price="{ value }">{{ fmt(value) }}</template>
+        <template #cell-cogs_per_unit="{ value }">{{ fmt(value) }}</template>
+        <template #cell-revenue="{ value }">{{ fmt(value) }}</template>
+        <template #cell-cogs="{ value }">{{ fmt(value) }}</template>
+        <template #cell-margin="{ value }">{{ fmt(value) }}</template>
+      </BaseDataTable>
     </template>
 
     <template v-if="tab === 'valuation' && valuationData">
@@ -217,19 +305,27 @@ onMounted(loadMasters)
         <div>Total Qty On Hand: <strong>{{ fmt(valuationData.summary.total_qty_on_hand) }}</strong></div>
         <div>Total Value: <strong>{{ fmt(valuationData.summary.total_value) }}</strong></div>
       </div>
-      <table class="data-table">
-        <thead><tr><th>Snapshot Date</th><th>Product</th><th>Warehouse</th><th>Qty On Hand</th><th>Total Value</th></tr></thead>
-        <tbody>
-          <tr v-for="row in valuationData.snapshots" :key="row.id">
-            <td>{{ row.snapshot_date }}</td>
-            <td>{{ productLabel(row.product_id) }}</td>
-            <td>{{ warehouseName(row.warehouse_id) }}</td>
-            <td>{{ row.qty_on_hand }}</td>
-            <td>{{ fmt(row.total_value) }}</td>
-          </tr>
-          <tr v-if="valuationData.snapshots.length === 0"><td colspan="5">Belum ada snapshot</td></tr>
-        </tbody>
-      </table>
+      <div class="section-header"><h2>Snapshots</h2><BaseButton variant="secondary" size="sm" @click="exportValuation">Export CSV</BaseButton></div>
+      <BaseDataTable
+        :columns="[
+          { key: 'snapshot_date', label: 'Snapshot Date', sortable: true },
+          { key: 'product_id', label: 'Product' },
+          { key: 'warehouse_id', label: 'Warehouse' },
+          { key: 'qty_on_hand', label: 'Qty On Hand', align: 'right' },
+          { key: 'total_value', label: 'Total Value', align: 'right', sortable: true },
+        ]"
+        :data="valuationTable.paged.value"
+        :page="valuationTable.page.value"
+        :page-size="valuationTable.pageSize"
+        :total-rows="valuationTable.totalRows.value"
+        :searchable="false"
+        @sort-change="valuationTable.onSortChange"
+        @update:page="valuationTable.onPageChange"
+      >
+        <template #cell-product_id="{ value }">{{ productLabel(value) }}</template>
+        <template #cell-warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+        <template #cell-total_value="{ value }">{{ fmt(value) }}</template>
+      </BaseDataTable>
     </template>
 
     <template v-if="tab === 'mutation' && mutationData">
@@ -237,37 +333,40 @@ onMounted(loadMasters)
         <div>Opening Balance: <strong>{{ mutationData.opening_balance_qty }}</strong> ({{ fmt(mutationData.opening_balance_value) }})</div>
         <div>Closing Balance: <strong>{{ mutationData.closing_balance_qty }}</strong> ({{ fmt(mutationData.closing_balance_value) }})</div>
       </div>
-      <table class="data-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Qty In</th><th>Qty Out</th><th>HPP Used</th><th>Balance Qty</th><th>Balance Value</th></tr></thead>
-        <tbody>
-          <tr v-for="row in mutationData.entries" :key="row.id">
-            <td>{{ new Date(row.transaction_date).toLocaleString() }}</td>
-            <td>{{ row.transaction_type }}</td>
-            <td>{{ row.qty_in }}</td>
-            <td>{{ row.qty_out }}</td>
-            <td>{{ row.hpp_used ?? '-' }}</td>
-            <td>{{ row.running_balance_qty }}</td>
-            <td>{{ fmt(row.running_balance_value) }}</td>
-          </tr>
-          <tr v-if="mutationData.entries.length === 0"><td colspan="7">Tidak ada mutasi</td></tr>
-        </tbody>
-      </table>
+      <div class="section-header"><h2>Kartu Stok</h2><BaseButton variant="secondary" size="sm" @click="exportMutation">Export CSV</BaseButton></div>
+      <BaseDataTable
+        :columns="[
+          { key: 'transaction_date', label: 'Date', sortable: true },
+          { key: 'transaction_type', label: 'Type' },
+          { key: 'qty_in', label: 'Qty In', align: 'right' },
+          { key: 'qty_out', label: 'Qty Out', align: 'right' },
+          { key: 'hpp_used', label: 'HPP Used', align: 'right' },
+          { key: 'running_balance_qty', label: 'Balance Qty', align: 'right' },
+          { key: 'running_balance_value', label: 'Balance Value', align: 'right' },
+        ]"
+        :data="mutationTable.paged.value"
+        :page="mutationTable.page.value"
+        :page-size="mutationTable.pageSize"
+        :total-rows="mutationTable.totalRows.value"
+        :searchable="false"
+        @sort-change="mutationTable.onSortChange"
+        @update:page="mutationTable.onPageChange"
+      >
+        <template #cell-transaction_date="{ value }">{{ new Date(value).toLocaleString() }}</template>
+        <template #cell-hpp_used="{ value }">{{ value ?? '-' }}</template>
+      </BaseDataTable>
     </template>
   </div>
 </template>
 
 <style scoped>
-.hint { font-size: 13px; color: #64748b; }
+.hint { font-size: 13px; color: var(--color-text-muted); }
 .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-.tabs button { padding: 8px 14px; border: none; border-radius: 6px; background: #e2e8f0; color: #334155; cursor: pointer; }
-.tabs button.active { background: #2563eb; color: #fff; }
-.filter-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
-.filter-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-input, select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-button { padding: 8px 14px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
-h2 { margin: 20px 0 10px; font-size: 16px; }
-.summary-box { display: flex; gap: 24px; background: #fff; padding: 14px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
-.data-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
-.data-table th, .data-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-.error { color: #dc2626; }
+.tabs button { padding: 8px 14px; border: none; border-radius: var(--radius-sm); background: var(--color-neutral-bg); color: var(--color-text); cursor: pointer; }
+.tabs button.active { background: var(--color-info); color: #fff; }
+.filter-form { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; background: var(--color-surface); padding: 16px; border-radius: var(--radius-md); box-shadow: var(--elevation-1); margin-bottom: 20px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin: 20px 0 10px; }
+.section-header h2 { margin: 0; font-size: 16px; }
+.summary-box { display: flex; gap: 24px; background: var(--color-surface); padding: 14px 16px; border-radius: var(--radius-md); box-shadow: var(--elevation-1); margin-bottom: 12px; font-size: 14px; }
+.error { color: var(--color-danger); }
 </style>
