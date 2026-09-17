@@ -6,7 +6,8 @@ export default defineNuxtRouteMiddleware((to) => {
   const auth = useAuthStore()
   if (!auth.accessToken) auth.hydrate()
 
-  if (to.path !== '/login' && !auth.accessToken) {
+  const publicPaths = ['/login', '/docs/api']
+  if (!publicPaths.includes(to.path) && !auth.accessToken) {
     return navigateTo('/login')
   }
   if (to.path === '/login' && auth.accessToken) {

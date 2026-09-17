@@ -118,6 +118,9 @@ onMounted(() => {
   align-items: center;
   justify-content: flex-end;
   padding: 0 16px;
+  box-shadow: var(--elevation-1);
+  position: relative;
+  z-index: 1;
 }
 .content {
   flex: 1;

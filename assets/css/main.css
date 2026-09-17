@@ -1,0 +1,51 @@
+/*
+ * Global Material Design tokens (PRD §3: "elevation halus, rounded corner
+ * konsisten", severity colors danger/warning/normal/info).
+ *
+ * Scoped-style components (MasterCrud, page files) each define their own
+ * `.card`/`.crud-form`/`.crud-table` etc. — this file gives every one of
+ * those surfaces the same elevation and radius via a plain (unscoped)
+ * class applied on top of them, so the whole app reads as one design
+ * system without rewriting each page's markup.
+ */
+:root {
+  --elevation-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.1);
+  --elevation-2: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 8px rgba(15, 23, 42, 0.1);
+  --radius-md: 8px;
+  --radius-sm: 6px;
+  --color-danger: #dc2626;
+  --color-warning: #ea580c;
+  --color-normal: #16a34a;
+  --color-info: #2563eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Any surface with these classnames — used across every page/component in
+   this app for forms, tables and dashboard cards — gets a consistent
+   Material elevation + rounded corner without each file redeclaring it. */
+.crud-form,
+.crud-table,
+.card,
+.data-table {
+  box-shadow: var(--elevation-1);
+  border-radius: var(--radius-md);
+}
+
+button {
+  transition: filter 0.15s ease;
+}
+button:hover:not(:disabled) {
+  filter: brightness(0.93);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
