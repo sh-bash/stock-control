@@ -11,12 +11,83 @@
 :root {
   --elevation-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.1);
   --elevation-2: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 8px rgba(15, 23, 42, 0.1);
+  --elevation-3: 0 8px 16px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.08);
   --radius-md: 8px;
   --radius-sm: 6px;
+  --radius-lg: 12px;
   --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
   --color-warning: #ea580c;
+  --color-warning-bg: #fef3c7;
   --color-normal: #16a34a;
+  --color-normal-bg: #dcfce7;
   --color-info: #2563eb;
+  --color-info-bg: #dbeafe;
+  --color-neutral: #64748b;
+  --color-neutral-bg: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-border: #cbd5e1;
+  --color-surface: #ffffff;
+  --color-bg: #f8fafc;
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/*
+ * Base UI kit (components/base/*) — shared reusable components for the
+ * upcoming UI/UX overhaul (BaseInput/BaseSelect/BaseTable/etc). Kept here
+ * rather than duplicated as scoped styles in every component so form
+ * fields, buttons and tables all read as one consistent design system.
+ */
+.base-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.base-field-label {
+  font-weight: 600;
+  color: var(--color-text);
+  display: flex;
+  gap: 2px;
+}
+.base-field-required {
+  color: var(--color-danger);
+}
+.base-field-control {
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+.base-field-control:focus {
+  outline: none;
+  border-color: var(--color-info);
+  box-shadow: var(--focus-ring);
+}
+.base-field-control:disabled {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+.base-field-control.has-error {
+  border-color: var(--color-danger);
+}
+.base-field-control.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+.base-field-helper {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.base-field-error {
+  font-size: 12px;
+  color: var(--color-danger);
 }
 
 * {

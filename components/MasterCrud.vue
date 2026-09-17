@@ -1,4 +1,11 @@
 <script setup lang="ts">
+// Shared list+form UI for all 7 Master Data pages (Warehouses, Product
+// Categories, Units, Products, Suppliers, Customers, Expeditions) — each
+// page file just passes `title`/`endpoint`/`fields`, so this one refactor
+// covers all of them. Uses server-side pagination/search/sort/filter
+// (opt-in on the API side — see server/utils/crud.ts's parsePagingQuery)
+// via BaseDataTable, and a BaseModal for create/edit instead of an
+// always-visible inline form.
 interface FieldConfig {
   key: string
   label: string
@@ -14,22 +21,51 @@ const props = defineProps<{
 }>()
 
 const rows = ref<any[]>([])
+const totalRows = ref(0)
 const loading = ref(false)
 const errorMsg = ref('')
-const editingId = ref<string | null>(null)
+const hasStatusColumn = ref(false)
 
-function emptyForm() {
-  const obj: Record<string, any> = {}
-  for (const f of props.fields) obj[f.key] = f.type === 'checkbox' ? true : ''
-  return obj
-}
-const form = ref<Record<string, any>>(emptyForm())
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const statusFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: '', direction: null })
+
+const columns = computed(() => {
+  const cols = props.fields.map((f) => ({ key: f.key, label: f.label, sortable: true }))
+  if (hasStatusColumn.value) {
+    cols.push({
+      key: 'is_active',
+      label: 'Status',
+      sortable: false,
+      filterOptions: [
+        { value: 'true', label: 'Aktif' },
+        { value: 'false', label: 'Nonaktif' },
+      ],
+    } as any)
+  }
+  return cols
+})
 
 async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    rows.value = await useApi<any[]>(props.endpoint)
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    if (statusFilter.value) params.set('is_active', statusFilter.value)
+
+    const res = await useApiEnvelope<any[]>(`${props.endpoint}?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? rows.value.length)
+    // Sticky once detected — an empty page (e.g. filtered to zero results)
+    // must not make the Status column/filter disappear.
+    if (rows.value.length > 0 && 'is_active' in rows.value[0]) hasStatusColumn.value = true
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -37,47 +73,115 @@ async function load() {
   }
 }
 
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
+}
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'is_active') {
+    statusFilter.value = value
+    page.value = 1
+    load()
+  }
+}
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
+}
+function onPageChange(p: number) {
+  page.value = p
+  load()
+}
+
+// --- create/edit modal ---
+const showModal = ref(false)
+const editingId = ref<string | null>(null)
+const formErrors = ref<Record<string, string>>({})
+const submitting = ref(false)
+
+function emptyForm() {
+  const obj: Record<string, any> = {}
+  for (const f of props.fields) obj[f.key] = f.type === 'checkbox' ? true : f.type === 'number' ? null : ''
+  return obj
+}
+const form = ref<Record<string, any>>(emptyForm())
+
 function startCreate() {
   editingId.value = null
   form.value = emptyForm()
+  formErrors.value = {}
+  showModal.value = true
 }
-
 function startEdit(row: any) {
   editingId.value = row.id
   const obj: Record<string, any> = {}
-  for (const f of props.fields) obj[f.key] = row[f.key] ?? (f.type === 'checkbox' ? true : '')
+  for (const f of props.fields) obj[f.key] = row[f.key] ?? (f.type === 'checkbox' ? true : f.type === 'number' ? null : '')
   form.value = obj
+  formErrors.value = {}
+  showModal.value = true
+}
+
+function validate() {
+  const errs: Record<string, string> = {}
+  for (const f of props.fields) {
+    if (f.required && (form.value[f.key] === '' || form.value[f.key] == null)) {
+      errs[f.key] = `${f.label} wajib diisi`
+    }
+    if (f.type === 'number' && form.value[f.key] != null && Number(form.value[f.key]) < 0) {
+      errs[f.key] = `${f.label} tidak boleh negatif`
+    }
+  }
+  formErrors.value = errs
+  return Object.keys(errs).length === 0
 }
 
 async function submit() {
   errorMsg.value = ''
+  if (!validate()) return
   const payload: Record<string, any> = {}
   for (const f of props.fields) {
     let val = form.value[f.key]
-    if (f.type === 'number' && val !== '') val = Number(val)
     if (val === '') val = undefined
     payload[f.key] = val
   }
+  submitting.value = true
   try {
     if (editingId.value) {
       await useApi(`${props.endpoint}/${editingId.value}`, { method: 'PUT', body: payload })
     } else {
       await useApi(props.endpoint, { method: 'POST', body: payload })
     }
-    startCreate()
+    showModal.value = false
     await load()
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal menyimpan data'
+  } finally {
+    submitting.value = false
   }
 }
 
-async function remove(row: any) {
-  if (!confirm(`Hapus "${row.name || row.code || row.sku}"?`)) return
+// --- delete ---
+const showDeleteConfirm = ref(false)
+const deleteTarget = ref<any>(null)
+const deleting = ref(false)
+
+function askDelete(row: any) {
+  deleteTarget.value = row
+  showDeleteConfirm.value = true
+}
+async function confirmDelete() {
+  if (!deleteTarget.value) return
+  deleting.value = true
   try {
-    await useApi(`${props.endpoint}/${row.id}`, { method: 'DELETE' })
+    await useApi(`${props.endpoint}/${deleteTarget.value.id}`, { method: 'DELETE' })
+    showDeleteConfirm.value = false
     await load()
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal menghapus data'
+    showDeleteConfirm.value = false
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -86,115 +190,104 @@ onMounted(load)
 
 <template>
   <div class="crud-page">
-    <h1>{{ title }}</h1>
+    <div class="header-row">
+      <h1>{{ title }}</h1>
+    </div>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="crud-form" @submit.prevent="submit">
-      <div v-for="f in fields" :key="f.key" class="form-field">
-        <label>{{ f.label }}</label>
-        <input v-if="!f.type || f.type === 'text'" v-model="form[f.key]" type="text" :required="f.required" />
-        <input v-else-if="f.type === 'number'" v-model="form[f.key]" type="number" step="any" :required="f.required" />
-        <input v-else-if="f.type === 'checkbox'" v-model="form[f.key]" type="checkbox" />
-        <select v-else-if="f.type === 'select'" v-model="form[f.key]">
-          <option value="">-</option>
-          <option v-for="opt in f.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
-      </div>
-      <div class="form-actions">
-        <button type="submit">{{ editingId ? 'Update' : 'Tambah' }}</button>
-        <button v-if="editingId" type="button" class="secondary" @click="startCreate">Batal</button>
-      </div>
-    </form>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      :search-placeholder="`Cari ${title.toLowerCase()}...`"
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="startCreate">+ Tambah</BaseButton>
+      </template>
+      <template #cell-is_active="{ value }">
+        <BaseBadge :status="value ? 'active' : 'inactive'">{{ value ? 'Aktif' : 'Nonaktif' }}</BaseBadge>
+      </template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="startEdit(row)">Edit</BaseButton>
+        <BaseButton variant="danger" size="sm" @click="askDelete(row)">Hapus</BaseButton>
+      </template>
+    </BaseDataTable>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="crud-table">
-      <thead>
-        <tr>
-          <th v-for="f in fields" :key="f.key">{{ f.label }}</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td v-for="f in fields" :key="f.key">{{ row[f.key] }}</td>
-          <td>
-            <button class="link" @click="startEdit(row)">Edit</button>
-            <button class="link danger" @click="remove(row)">Hapus</button>
-          </td>
-        </tr>
-        <tr v-if="rows.length === 0">
-          <td :colspan="fields.length + 1">Belum ada data</td>
-        </tr>
-      </tbody>
-    </table>
+    <BaseModal v-model="showModal" :title="editingId ? `Edit ${title}` : `Tambah ${title}`" size="md">
+      <form class="crud-form-grid" @submit.prevent="submit">
+        <template v-for="f in fields" :key="f.key">
+          <BaseInput
+            v-if="!f.type || f.type === 'text'"
+            v-model="form[f.key]"
+            :label="f.label"
+            :required="f.required"
+            :error="formErrors[f.key]"
+          />
+          <BaseNumberInput
+            v-else-if="f.type === 'number'"
+            v-model="form[f.key]"
+            :label="f.label"
+            :required="f.required"
+            :error="formErrors[f.key]"
+          />
+          <BaseSelect
+            v-else-if="f.type === 'select'"
+            v-model="form[f.key]"
+            :label="f.label"
+            :options="f.options ?? []"
+            :required="f.required"
+            :error="formErrors[f.key]"
+          />
+          <label v-else-if="f.type === 'checkbox'" class="checkbox-field">
+            <input v-model="form[f.key]" type="checkbox" />
+            {{ f.label }}
+          </label>
+        </template>
+      </form>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="submitting" @click="showModal = false">Batal</BaseButton>
+        <BaseButton :loading="submitting" @click="submit">{{ editingId ? 'Update' : 'Simpan' }}</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseConfirmDialog
+      v-model="showDeleteConfirm"
+      title="Hapus Data?"
+      :message="`Hapus '${deleteTarget?.name || deleteTarget?.code || deleteTarget?.sku}'? Tindakan ini tidak bisa dibatalkan.`"
+      confirm-text="Ya, Hapus"
+      variant="danger"
+      :loading="deleting"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
 <style scoped>
-.crud-page h1 {
+.header-row {
   margin-bottom: 16px;
 }
-.crud-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-end;
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-.form-field input,
-.form-field select {
-  padding: 6px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-.form-actions {
-  display: flex;
-  gap: 8px;
-}
-button {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
-  cursor: pointer;
-}
-button.secondary {
-  background: #94a3b8;
-}
-button.link {
-  background: none;
-  color: #2563eb;
-  padding: 2px 6px;
-}
-button.link.danger {
-  color: #dc2626;
-}
-.crud-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.crud-table th,
-.crud-table td {
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 14px;
-}
 .error {
-  color: #dc2626;
+  color: var(--color-danger);
   margin-bottom: 12px;
+}
+.crud-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  align-self: end;
+  padding-bottom: 8px;
 }
 </style>
