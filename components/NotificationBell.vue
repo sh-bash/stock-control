@@ -17,9 +17,9 @@ function handleClickItem(recipientId: string, isRead: boolean) {
 }
 
 function severityColor(severity: string) {
-  if (severity === 'danger') return '#dc2626'
-  if (severity === 'warning') return '#ea580c'
-  return '#2563eb'
+  if (severity === 'danger') return 'var(--color-danger)'
+  if (severity === 'warning') return 'var(--color-warning)'
+  return 'var(--color-info)'
 }
 </script>
 
@@ -65,7 +65,7 @@ function severityColor(severity: string) {
   position: absolute;
   top: -4px;
   right: -6px;
-  background: #dc2626;
+  background: var(--color-danger);
   color: #fff;
   font-size: 11px;
   padding: 1px 5px;
@@ -78,31 +78,31 @@ function severityColor(severity: string) {
   width: 320px;
   max-height: 400px;
   overflow-y: auto;
-  background: #fff;
-  color: #0f172a;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-3);
   z-index: 50;
 }
 .dropdown-header {
   padding: 12px;
   font-weight: 600;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-neutral-bg);
 }
 .empty {
   padding: 16px;
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: 13px;
 }
 .notif-item {
   display: flex;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-bg);
   cursor: pointer;
 }
 .notif-item.unread {
-  background: #f8fafc;
+  background: var(--color-bg);
 }
 .dot {
   width: 8px;

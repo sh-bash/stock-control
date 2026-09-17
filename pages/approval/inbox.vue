@@ -10,18 +10,51 @@ interface Instance {
 }
 
 const DOCUMENT_TYPES = ['po', 'receiving', 'purchase_return', 'so', 'do', 'sale_return', 'adjustment', 'transfer']
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+]
 
-const instances = ref<Instance[]>([])
+const rows = ref<Instance[]>([])
+const totalRows = ref(0)
 const errorMsg = ref('')
 const loading = ref(false)
 const submitDocType = ref('po')
+const submitting = ref(false)
 const noteMap = ref<Record<string, string>>({})
+
+const page = ref(1)
+const pageSize = 20
+const statusFilter = ref('')
+const docTypeFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'created_at', direction: 'desc' })
+
+const columns = [
+  {
+    key: 'document_type',
+    label: 'Document Type',
+    filterOptions: DOCUMENT_TYPES.map((dt) => ({ value: dt, label: dt })),
+  },
+  { key: 'document_id', label: 'Document ID' },
+  { key: 'current_step', label: 'Current Step' },
+  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+]
 
 async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    instances.value = await useApi<Instance[]>('/approvals')
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (docTypeFilter.value) params.set('document_type', docTypeFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<Instance[]>(`/approvals?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -29,38 +62,66 @@ async function load() {
   }
 }
 
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'status') statusFilter.value = value
+  if (key === 'document_type') docTypeFilter.value = value
+  page.value = 1
+  load()
+}
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
+}
+function onPageChange(p: number) {
+  page.value = p
+  load()
+}
+
 async function submitDummy() {
   errorMsg.value = ''
+  submitting.value = true
   try {
     await useApi('/approvals/test-submit', { method: 'POST', body: { document_type: submitDocType.value } })
+    page.value = 1
     await load()
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal submit dokumen dummy'
+  } finally {
+    submitting.value = false
   }
 }
 
-async function approve(id: string) {
-  errorMsg.value = ''
+// --- confirm dialog (approve/reject share one) ---
+const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
+  show: false, title: '', message: '', confirmText: '', variant: 'primary', loading: false, run: null,
+})
+function askAction(inst: Instance, action: 'approve' | 'reject') {
+  const note = noteMap.value[inst.id] || ''
+  confirmState.value = {
+    show: true,
+    title: action === 'approve' ? 'Approve Dokumen?' : 'Reject Dokumen?',
+    message: `${inst.document_type.toUpperCase()} (${inst.document_id.slice(0, 8)}...) akan di-${action}.${note ? ` Catatan: "${note}"` : ''}`,
+    confirmText: action === 'approve' ? 'Ya, Approve' : 'Ya, Reject',
+    variant: action === 'approve' ? 'primary' : 'danger',
+    loading: false,
+    run: async () => {
+      await useApi(`/approvals/${inst.id}/${action}`, { method: 'POST', body: { note } })
+      await load()
+    },
+  }
+}
+async function runConfirmedAction() {
+  if (!confirmState.value.run) return
+  confirmState.value.loading = true
   try {
-    await useApi(`/approvals/${id}/approve`, { method: 'POST', body: { note: noteMap.value[id] || '' } })
-    await load()
+    await confirmState.value.run()
+    confirmState.value.show = false
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal approve'
+    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
+    confirmState.value.show = false
+  } finally {
+    confirmState.value.loading = false
   }
-}
-
-async function reject(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/approvals/${id}/reject`, { method: 'POST', body: { note: noteMap.value[id] || '' } })
-    await load()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal reject'
-  }
-}
-
-function statusClass(status: string) {
-  return `status status-${status}`
 }
 
 onMounted(load)
@@ -71,124 +132,57 @@ onMounted(load)
     <h1>Approval Inbox</h1>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <div class="submit-box">
-      <select v-model="submitDocType">
-        <option v-for="dt in DOCUMENT_TYPES" :key="dt" :value="dt">{{ dt }}</option>
-      </select>
-      <button @click="submitDummy">Submit Dokumen Dummy</button>
-      <span class="hint">Testing: buat dokumen dummy baru untuk masuk approval flow</span>
-    </div>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      :searchable="false"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <div class="submit-box">
+          <BaseSelect v-model="submitDocType" :options="DOCUMENT_TYPES.map((dt) => ({ value: dt, label: dt }))" />
+          <BaseButton size="sm" variant="secondary" :loading="submitting" @click="submitDummy">Submit Dokumen Dummy</BaseButton>
+        </div>
+      </template>
+      <template #cell-document_id="{ value }"><span class="mono">{{ value.slice(0, 8) }}...</span></template>
+      <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+      <template #actions="{ row }">
+        <template v-if="row.status === 'pending'">
+          <input v-model="noteMap[row.id]" class="note-input" type="text" placeholder="Catatan (opsional)" />
+          <BaseButton size="sm" @click="askAction(row, 'approve')">Approve</BaseButton>
+          <BaseButton variant="danger" size="sm" @click="askAction(row, 'reject')">Reject</BaseButton>
+        </template>
+      </template>
+    </BaseDataTable>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="instance-table">
-      <thead>
-        <tr>
-          <th>Document Type</th>
-          <th>Document ID</th>
-          <th>Current Step</th>
-          <th>Status</th>
-          <th>Note</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="inst in instances" :key="inst.id">
-          <td>{{ inst.document_type }}</td>
-          <td class="mono">{{ inst.document_id.slice(0, 8) }}...</td>
-          <td>{{ inst.current_step }}</td>
-          <td><span :class="statusClass(inst.status)">{{ inst.status }}</span></td>
-          <td>
-            <input v-model="noteMap[inst.id]" type="text" placeholder="Catatan (opsional)" />
-          </td>
-          <td>
-            <template v-if="inst.status === 'pending'">
-              <button class="approve" @click="approve(inst.id)">Approve</button>
-              <button class="reject" @click="reject(inst.id)">Reject</button>
-            </template>
-          </td>
-        </tr>
-        <tr v-if="instances.length === 0">
-          <td colspan="6">Belum ada approval instance</td>
-        </tr>
-      </tbody>
-    </table>
+    <BaseConfirmDialog
+      v-model="confirmState.show"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :confirm-text="confirmState.confirmText"
+      :variant="confirmState.variant"
+      :loading="confirmState.loading"
+      @confirm="runConfirmedAction"
+    />
   </div>
 </template>
 
 <style scoped>
-.submit-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fff;
-  padding: 14px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-.submit-box select {
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.submit-box { display: flex; align-items: center; gap: 8px; }
+.mono { font-family: monospace; }
+.note-input {
   padding: 6px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-.hint {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 140px;
   font-size: 12px;
-  color: #64748b;
-}
-.instance-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.instance-table th,
-.instance-table td {
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 14px;
-}
-.mono {
-  font-family: monospace;
-}
-input {
-  padding: 4px 6px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  width: 160px;
-}
-button {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #fff;
   margin-right: 4px;
-}
-button.approve {
-  background: #16a34a;
-}
-button.reject {
-  background: #dc2626;
-}
-.status {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-}
-.status-pending {
-  background: #fef3c7;
-  color: #b45309;
-}
-.status-approved {
-  background: #dcfce7;
-  color: #16a34a;
-}
-.status-rejected {
-  background: #fee2e2;
-  color: #dc2626;
-}
-.error {
-  color: #dc2626;
 }
 </style>

@@ -1,35 +1,14 @@
 <script setup lang="ts">
-interface Role {
-  id: string
-  name: string
-}
-interface User {
-  id: string
-  name: string
-}
-interface Target {
-  id: string
-  target_type: 'role' | 'user'
-  target_id: string
-}
-interface Rule {
-  id: string
-  type: string
-  scope_type: string
-  scope_id: string | null
-  is_active: boolean
-  targets: Target[]
-}
+// Same rationale as approval/workflows.vue: card layout kept (nested
+// targets + inline add-target form don't fit a flat table), but every
+// control now uses the base UI kit. Rule count is small, so no server
+// pagination here.
+interface Role { id: string; name: string }
+interface User { id: string; name: string }
+interface Target { id: string; target_type: 'role' | 'user'; target_id: string }
+interface Rule { id: string; type: string; scope_type: string; scope_id: string | null; is_active: boolean; targets: Target[] }
 
-const NOTIFICATION_TYPES = [
-  'min_stock',
-  'reorder_point',
-  'aging_danger',
-  'aging_warning',
-  'slow_moving',
-  'dead_stock',
-  'approval_pending',
-]
+const NOTIFICATION_TYPES = ['min_stock', 'reorder_point', 'aging_danger', 'aging_warning', 'slow_moving', 'dead_stock', 'approval_pending']
 const SCOPE_TYPES = ['global', 'product', 'category', 'warehouse', 'product_warehouse']
 
 const rules = ref<Rule[]>([])
@@ -38,7 +17,6 @@ const users = ref<User[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
 
-const form = ref({ type: 'min_stock', scope_type: 'global', scope_id: '' })
 const targetForm = ref<Record<string, { target_type: 'role' | 'user'; target_id: string }>>({})
 
 async function loadAll() {
@@ -65,8 +43,28 @@ function targetLabel(t: Target) {
   return `User: ${users.value.find((u) => u.id === t.target_id)?.name || t.target_id}`
 }
 
+function targetFormFor(ruleId: string) {
+  if (!targetForm.value[ruleId]) {
+    targetForm.value[ruleId] = { target_type: 'role', target_id: '' }
+  }
+  return targetForm.value[ruleId]
+}
+
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+const form = ref({ type: 'min_stock', scope_type: 'global', scope_id: '' })
+
+function openCreateModal() {
+  form.value = { type: 'min_stock', scope_type: 'global', scope_id: '' }
+  createError.value = ''
+  showCreateModal.value = true
+}
+
 async function createRule() {
-  errorMsg.value = ''
+  createError.value = ''
+  creating.value = true
   try {
     await useApi('/notifications/rules', {
       method: 'POST',
@@ -76,10 +74,12 @@ async function createRule() {
         scope_id: form.value.scope_type === 'global' ? null : form.value.scope_id || null,
       },
     })
-    form.value = { type: 'min_stock', scope_type: 'global', scope_id: '' }
+    showCreateModal.value = false
     await loadAll()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat rule'
+    createError.value = err?.data?.data?.message || 'Gagal membuat rule'
+  } finally {
+    creating.value = false
   }
 }
 
@@ -90,23 +90,6 @@ async function toggleActive(rule: Rule) {
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal update rule'
   }
-}
-
-async function removeRule(id: string) {
-  if (!confirm('Hapus rule ini?')) return
-  try {
-    await useApi(`/notifications/rules/${id}`, { method: 'DELETE' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal menghapus rule'
-  }
-}
-
-function targetFormFor(ruleId: string) {
-  if (!targetForm.value[ruleId]) {
-    targetForm.value[ruleId] = { target_type: 'role', target_id: '' }
-  }
-  return targetForm.value[ruleId]
 }
 
 async function addTarget(ruleId: string) {
@@ -125,12 +108,45 @@ async function addTarget(ruleId: string) {
   }
 }
 
-async function removeTarget(ruleId: string, targetId: string) {
+// --- confirm dialogs (shared for remove-target and remove-rule) ---
+const confirmState = ref<{ show: boolean; title: string; message: string; loading: boolean; run: (() => Promise<void>) | null }>({
+  show: false, title: '', message: '', loading: false, run: null,
+})
+function askRemoveTarget(ruleId: string, target: Target) {
+  confirmState.value = {
+    show: true,
+    title: 'Hapus Target?',
+    message: `${targetLabel(target)} akan dihapus dari rule ini.`,
+    loading: false,
+    run: async () => {
+      await useApi(`/notifications/rules/${ruleId}/targets/${target.id}`, { method: 'DELETE' })
+      await loadAll()
+    },
+  }
+}
+function askRemoveRule(rule: Rule) {
+  confirmState.value = {
+    show: true,
+    title: 'Hapus Rule?',
+    message: `Rule "${rule.type}" (scope: ${rule.scope_type}) beserta semua target-nya akan dihapus permanen.`,
+    loading: false,
+    run: async () => {
+      await useApi(`/notifications/rules/${rule.id}`, { method: 'DELETE' })
+      await loadAll()
+    },
+  }
+}
+async function runConfirmedAction() {
+  if (!confirmState.value.run) return
+  confirmState.value.loading = true
   try {
-    await useApi(`/notifications/rules/${ruleId}/targets/${targetId}`, { method: 'DELETE' })
-    await loadAll()
+    await confirmState.value.run()
+    confirmState.value.show = false
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal menghapus target'
+    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
+    confirmState.value.show = false
+  } finally {
+    confirmState.value.loading = false
   }
 }
 
@@ -139,169 +155,86 @@ onMounted(loadAll)
 
 <template>
   <div class="rules-page">
-    <h1>Notification Rules</h1>
+    <div class="header-row">
+      <h1>Notification Rules</h1>
+      <BaseButton size="sm" @click="openCreateModal">+ Buat Rule</BaseButton>
+    </div>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
-
-    <form class="create-form" @submit.prevent="createRule">
-      <label>
-        Type
-        <select v-model="form.type">
-          <option v-for="t in NOTIFICATION_TYPES" :key="t" :value="t">{{ t }}</option>
-        </select>
-      </label>
-      <label>
-        Scope
-        <select v-model="form.scope_type">
-          <option v-for="s in SCOPE_TYPES" :key="s" :value="s">{{ s }}</option>
-        </select>
-      </label>
-      <label v-if="form.scope_type !== 'global'">
-        Scope ID (UUID product/category/warehouse)
-        <input v-model="form.scope_id" type="text" placeholder="uuid" />
-      </label>
-      <button type="submit">Buat Rule</button>
-    </form>
 
     <p v-if="loading">Memuat...</p>
     <div v-else class="rule-list">
       <div v-for="rule in rules" :key="rule.id" class="rule-card">
         <div class="rule-header">
-          <div>
+          <div class="rule-title">
             <strong>{{ rule.type }}</strong>
-            <span class="tag">scope: {{ rule.scope_type }}</span>
-            <span v-if="rule.scope_id" class="tag mono">{{ rule.scope_id }}</span>
-            <span class="tag" :class="rule.is_active ? 'tag-active' : 'tag-inactive'">
-              {{ rule.is_active ? 'active' : 'inactive' }}
-            </span>
+            <BaseBadge tone="neutral">scope: {{ rule.scope_type }}</BaseBadge>
+            <BaseBadge v-if="rule.scope_id" tone="neutral"><span class="mono">{{ rule.scope_id }}</span></BaseBadge>
+            <BaseBadge :status="rule.is_active ? 'active' : 'inactive'" />
           </div>
           <div class="rule-actions">
-            <button class="link" @click="toggleActive(rule)">{{ rule.is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>
-            <button class="link danger" @click="removeRule(rule.id)">Hapus</button>
+            <BaseButton variant="ghost" size="sm" @click="toggleActive(rule)">{{ rule.is_active ? 'Nonaktifkan' : 'Aktifkan' }}</BaseButton>
+            <BaseButton variant="danger" size="sm" @click="askRemoveRule(rule)">Hapus</BaseButton>
           </div>
         </div>
 
         <ul class="targets">
           <li v-for="t in rule.targets" :key="t.id">
-            {{ targetLabel(t) }}
-            <button class="link danger" @click="removeTarget(rule.id, t.id)">Hapus</button>
+            <span>{{ targetLabel(t) }}</span>
+            <BaseButton variant="ghost" size="sm" @click="askRemoveTarget(rule.id, t)">Hapus</BaseButton>
           </li>
           <li v-if="rule.targets.length === 0" class="empty">Belum ada target</li>
         </ul>
 
         <div class="add-target">
-          <select v-model="targetFormFor(rule.id).target_type">
-            <option value="role">Role</option>
-            <option value="user">User</option>
-          </select>
-          <select v-model="targetFormFor(rule.id).target_id">
-            <option value="">-- pilih target --</option>
-            <option
-              v-for="opt in targetFormFor(rule.id).target_type === 'role' ? roles : users"
-              :key="opt.id"
-              :value="opt.id"
-            >
-              {{ opt.name }}
-            </option>
-          </select>
-          <button @click="addTarget(rule.id)">Tambah Target</button>
+          <BaseSelect v-model="targetFormFor(rule.id).target_type" :options="[{ value: 'role', label: 'Role' }, { value: 'user', label: 'User' }]" />
+          <BaseSelect
+            v-model="targetFormFor(rule.id).target_id"
+            placeholder="-- pilih target --"
+            :options="(targetFormFor(rule.id).target_type === 'role' ? roles : users).map((o) => ({ value: o.id, label: o.name }))"
+          />
+          <BaseButton size="sm" @click="addTarget(rule.id)">Tambah Target</BaseButton>
         </div>
       </div>
       <p v-if="rules.length === 0">Belum ada rule</p>
     </div>
+
+    <BaseModal v-model="showCreateModal" title="Buat Notification Rule" size="sm">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect v-model="form.type" label="Type" :options="NOTIFICATION_TYPES.map((t) => ({ value: t, label: t }))" />
+        <BaseSelect v-model="form.scope_type" label="Scope" :options="SCOPE_TYPES.map((s) => ({ value: s, label: s }))" />
+        <BaseInput v-if="form.scope_type !== 'global'" v-model="form.scope_id" label="Scope ID (UUID product/category/warehouse)" placeholder="uuid" />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" @click="createRule">Buat Rule</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseConfirmDialog
+      v-model="confirmState.show"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      confirm-text="Ya, Hapus"
+      variant="danger"
+      :loading="confirmState.loading"
+      @confirm="runConfirmedAction"
+    />
   </div>
 </template>
 
 <style scoped>
-.create-form {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.create-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-.create-form input,
-.create-form select {
-  padding: 6px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-button {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
-  cursor: pointer;
-}
-button.link {
-  background: none;
-  color: #2563eb;
-  padding: 2px 6px;
-}
-button.link.danger {
-  color: #dc2626;
-}
-.rule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.rule-card {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-}
-.rule-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.tag {
-  margin-left: 8px;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #e2e8f0;
-}
-.tag.mono {
-  font-family: monospace;
-}
-.tag-active {
-  background: #dcfce7;
-  color: #16a34a;
-}
-.tag-inactive {
-  background: #fee2e2;
-  color: #dc2626;
-}
-.targets {
-  margin: 0 0 12px 20px;
-  padding: 0;
-  font-size: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.targets .empty {
-  color: #94a3b8;
-  list-style: none;
-  margin-left: -20px;
-}
-.add-target {
-  display: flex;
-  gap: 8px;
-}
-.error {
-  color: #dc2626;
-}
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.form-grid { display: flex; flex-direction: column; gap: 14px; }
+.rule-list { display: flex; flex-direction: column; gap: 16px; }
+.rule-card { background: var(--color-surface); padding: 16px; border-radius: var(--radius-md); box-shadow: var(--elevation-1); }
+.rule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.rule-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rule-actions { display: flex; gap: 4px; }
+.mono { font-family: monospace; }
+.targets { margin: 0 0 12px; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 4px; list-style: none; }
+.targets li { display: flex; align-items: center; justify-content: space-between; }
+.targets .empty { color: var(--color-text-muted); }
+.add-target { display: flex; gap: 8px; align-items: flex-end; }
 </style>
