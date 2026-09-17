@@ -10,6 +10,6 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo('/login')
   }
   if (to.path === '/login' && auth.accessToken) {
-    return navigateTo('/master/warehouses')
+    return navigateTo('/dashboard')
   }
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-await navigateTo('/master/warehouses')
+await navigateTo('/dashboard')
 </script>
 
 <template>

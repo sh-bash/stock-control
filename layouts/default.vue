@@ -7,6 +7,7 @@ const notifStore = useNotificationStore()
 const router = useRouter()
 
 const navItems = [
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/master/warehouses', label: 'Warehouses' },
   { to: '/master/product-categories', label: 'Product Categories' },
   { to: '/master/units', label: 'Units' },
