@@ -4,6 +4,7 @@ import {
   createOrder,
   createItem,
   findOrder,
+  getOrderForUpdate,
   listItems,
   updateOrder,
   updateOrderTx,
@@ -68,16 +69,25 @@ export async function getSaleOrderWithItems(id: string) {
 // item immediately and close the SO in the same transaction. use_do=true:
 // only reserve the qty (qty_reserved += qty_order) — physical consumption
 // is deferred to when a delivery order against this SO is approved.
+//
+// The status check is done AFTER locking the SO row (FOR UPDATE) inside the
+// transaction, not before opening it. Checking first and writing later left
+// a race window: two concurrent confirm requests for the same SO (a
+// double-click, a client retry) could both read status='draft', both pass
+// the check, and both run consumeStock — physically consuming stock twice
+// for one order. Locking first serializes them: the second request blocks
+// until the first commits, then re-reads status as 'closed'/'confirmed'
+// and cleanly rejects instead of double-consuming.
 export async function confirmSaleOrder(soId: string) {
-  const so = await findOrder(soId)
-  if (!so) return failure('SO tidak ditemukan', 'NOT_FOUND', 404)
-  if (so.status !== 'draft') {
-    return failure(`SO tidak bisa di-confirm dari status "${so.status}"`, 'INVALID_STATUS', 400)
-  }
-
   const items = await listItems(soId)
 
-  await db.transaction(async (tx) => {
+  const useDo = await db.transaction(async (tx) => {
+    const so = await getOrderForUpdate(tx, soId)
+    if (!so) return failure('SO tidak ditemukan', 'NOT_FOUND', 404)
+    if (so.status !== 'draft') {
+      return failure(`SO tidak bisa di-confirm dari status "${so.status}"`, 'INVALID_STATUS', 400)
+    }
+
     if (!so.use_do) {
       for (const item of items) {
         await consumeStock(tx, {
@@ -104,12 +114,15 @@ export async function confirmSaleOrder(soId: string) {
       }
       await updateOrderTx(tx, soId, { status: 'confirmed' })
     }
+
+    return so.use_do
   })
 
-  if (!so.use_do) {
+  if (!useDo) {
+    const so = await findOrder(soId)
     const affectedProducts = new Set(items.map((i) => i.product_id))
     for (const productId of affectedProducts) {
-      await checkAndNotifyStockThreshold(productId, so.warehouse_id)
+      await checkAndNotifyStockThreshold(productId, so!.warehouse_id)
     }
   }
 

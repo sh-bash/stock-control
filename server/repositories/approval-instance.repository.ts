@@ -29,6 +29,19 @@ export function findInstance(id: string, executor: Executor = db) {
   return executor.query.approvalInstances.findFirst({ where: eq(approvalInstances.id, id) })
 }
 
+// Row-locks the instance for the duration of the caller's transaction.
+// approveInstance/rejectInstance use this (not the plain findInstance
+// above) so two concurrent approve/reject calls on the same instance can't
+// both read status='pending' and both proceed — the second blocks until
+// the first's transaction commits, then re-reads the now-'approved'/
+// 'rejected' status and cleanly rejects. Without this, a double-click (or
+// client retry) on a PO/Receiving/PurchaseReturn/Adjustment approve button
+// could run the underlying stock mutation twice.
+export async function findInstanceForUpdate(id: string, executor: Executor = db) {
+  const rows = await executor.select().from(approvalInstances).where(eq(approvalInstances.id, id)).for('update')
+  return rows[0] ?? null
+}
+
 export function findInstanceByDocument(documentType: string, documentId: string, executor: Executor = db) {
   return executor.query.approvalInstances.findFirst({
     where: (t, { and, eq }) => and(eq(t.document_type, documentType), eq(t.document_id, documentId)),

@@ -4,6 +4,7 @@ import {
   createOrder,
   createItem,
   findOrder,
+  getOrderForUpdate,
   listItems,
   setItemCogsTx,
   updateOrderTx,
@@ -94,32 +95,39 @@ export async function getDeliveryOrderWithItems(id: string) {
 // consumeStock (§6.1) per item, records cogs_per_unit on the DO item,
 // releases the SO's reservation, and accumulates sale_order_items.qty_delivered
 // — all inside ONE transaction.
+//
+// The status check happens AFTER locking the DO row (FOR UPDATE) inside the
+// transaction, not before opening it — see the identical fix and rationale
+// on confirmSaleOrder in sale-order.service.ts. Without the lock, two
+// concurrent approve requests for the same DO could both read
+// status='draft' and both run consumeStock, physically shipping the same
+// delivery twice.
 export async function approveDeliveryOrder(doId: string) {
-  const deliveryOrder = await findOrder(doId)
-  if (!deliveryOrder) return failure('DO tidak ditemukan', 'NOT_FOUND', 404)
-  if (deliveryOrder.status !== 'draft') {
-    return failure(`DO tidak bisa di-approve dari status "${deliveryOrder.status}"`, 'INVALID_STATUS', 400)
-  }
-
   const items = await listItems(doId)
 
-  await db.transaction(async (tx) => {
+  const deliveryOrder = await db.transaction(async (tx) => {
+    const lockedDo = await getOrderForUpdate(tx, doId)
+    if (!lockedDo) return failure('DO tidak ditemukan', 'NOT_FOUND', 404)
+    if (lockedDo.status !== 'draft') {
+      return failure(`DO tidak bisa di-approve dari status "${lockedDo.status}"`, 'INVALID_STATUS', 400)
+    }
+
     for (const item of items) {
       const cogsPerUnit = await consumeStock(tx, {
         product_id: item.product_id,
-        warehouse_id: deliveryOrder.warehouse_id,
+        warehouse_id: lockedDo.warehouse_id,
         qty_needed: Number(item.qty_delivered),
         transaction_type: 'delivery',
         reference_type: 'do',
-        reference_id: deliveryOrder.id,
-        reference_no: deliveryOrder.no_do,
+        reference_id: lockedDo.id,
+        reference_no: lockedDo.no_do,
       })
 
       await setItemCogsTx(tx, item.id, cogsPerUnit.toString())
 
       await decrementReservedQtyGuarded(tx, {
         product_id: item.product_id,
-        warehouse_id: deliveryOrder.warehouse_id,
+        warehouse_id: lockedDo.warehouse_id,
         qty: item.qty_delivered,
       })
 
@@ -127,6 +135,8 @@ export async function approveDeliveryOrder(doId: string) {
     }
 
     await updateOrderTx(tx, doId, { status: 'approved' })
+
+    return lockedDo
   })
 
   await recalculateSaleOrderStatus(deliveryOrder.so_id)

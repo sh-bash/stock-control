@@ -6,7 +6,7 @@ import {
 import {
   createInstance,
   createLog,
-  findInstance,
+  findInstanceForUpdate,
   updateInstance,
 } from '../repositories/approval-instance.repository'
 import { findUserById } from '../repositories/user.repository'
@@ -69,13 +69,20 @@ async function assertApprover(workflowId: string, stepOrder: number, approverUse
 // transaction fails and rolls back — leaving the document permanently stuck
 // (instance no longer 'pending', so it can never be approved or rejected
 // again, but the document itself never advanced past 'waiting_approval').
+//
+// The instance is read via findInstanceForUpdate (SELECT ... FOR UPDATE),
+// not a plain read, so two concurrent approve calls on the same instance
+// can't both see status='pending' and both proceed — the second blocks on
+// the row lock until the first's transaction commits, then correctly sees
+// 'approved'/'rejected' and rejects instead of re-running the business
+// mutation it gates.
 export async function approveInstance(
   instanceId: string,
   approverUserId: string,
   note?: string,
   executor: Executor = db,
 ) {
-  const instance = await findInstance(instanceId, executor)
+  const instance = await findInstanceForUpdate(instanceId, executor)
   if (!instance) return failure('Approval instance tidak ditemukan', 'NOT_FOUND', 404)
   if (instance.status !== 'pending') {
     return failure(`Approval instance sudah berstatus "${instance.status}"`, 'INSTANCE_NOT_PENDING', 400)
@@ -116,7 +123,7 @@ export async function rejectInstance(
   note?: string,
   executor: Executor = db,
 ) {
-  const instance = await findInstance(instanceId, executor)
+  const instance = await findInstanceForUpdate(instanceId, executor)
   if (!instance) return failure('Approval instance tidak ditemukan', 'NOT_FOUND', 404)
   if (instance.status !== 'pending') {
     return failure(`Approval instance sudah berstatus "${instance.status}"`, 'INSTANCE_NOT_PENDING', 400)
