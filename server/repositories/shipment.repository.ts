@@ -1,9 +1,28 @@
 import { eq } from 'drizzle-orm'
 import { db } from '../db/client'
 import { shipments, shipmentPoRef, shipmentItems } from '../db/schema'
+import { listPaged, type PagedListOptions } from '../utils/crud'
+
+const SORT_COLUMNS: Record<string, any> = {
+  no_shipment: shipments.no_shipment,
+  ship_date: shipments.ship_date,
+  status: shipments.status,
+}
 
 export function listShipments() {
   return db.select().from(shipments)
+}
+
+export function listShipmentsPaged(opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string }) {
+  const extraFilters = []
+  if (opts.status) extraFilters.push({ column: shipments.status, value: opts.status })
+  return listPaged(shipments, {
+    ...opts,
+    searchColumns: [shipments.no_shipment],
+    sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || shipments.ship_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
 }
 
 export function findShipment(id: string) {

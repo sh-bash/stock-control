@@ -2,11 +2,33 @@ import { eq } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { receivings, receivingItems } from '../db/schema'
+import { listPaged, type PagedListOptions } from '../utils/crud'
 
 type Tx = PgTransaction<any, any, any>
 
+const SORT_COLUMNS: Record<string, any> = {
+  no_receiving: receivings.no_receiving,
+  receive_date: receivings.receive_date,
+  status: receivings.status,
+}
+
 export function listReceivings() {
   return db.select().from(receivings)
+}
+
+export function listReceivingsPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+) {
+  const extraFilters = []
+  if (opts.status) extraFilters.push({ column: receivings.status, value: opts.status })
+  if (opts.warehouseId) extraFilters.push({ column: receivings.warehouse_id, value: opts.warehouseId })
+  return listPaged(receivings, {
+    ...opts,
+    searchColumns: [receivings.no_receiving],
+    sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || receivings.receive_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
 }
 
 export function findReceiving(id: string) {

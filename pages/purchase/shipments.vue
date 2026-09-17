@@ -21,43 +21,127 @@ interface Shipment {
   items?: ShipmentItem[]
 }
 
-const shipments = ref<Shipment[]>([])
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'completed', label: 'Completed' },
+]
+
+const rows = ref<Shipment[]>([])
+const totalRows = ref(0)
 const expeditions = ref<Expedition[]>([])
-const orders = ref<Po[]>([])
+const approvedOrders = ref<Po[]>([])
 const products = ref<Product[]>([])
 const poItemsCache = ref<Record<string, PoItem[]>>({})
 const errorMsg = ref('')
 const loading = ref(false)
-const expanded = ref<Record<string, Shipment | null>>({})
 
-const form = ref({
-  expedition_id: '',
-  ship_date: new Date().toISOString().slice(0, 10),
-  total_shipping_cost: 0,
-  allocation_method: 'per_value' as 'per_qty' | 'per_value' | 'per_weight',
-  po_ids: [] as string[],
-  items: [] as { po_item_id: string; qty_shipped: number; weight?: number }[],
-})
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const statusFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'ship_date', direction: 'desc' })
 
-async function loadAll() {
+const columns = [
+  { key: 'no_shipment', label: 'No Shipment', sortable: true },
+  { key: 'expedition_id', label: 'Expedition' },
+  { key: 'ship_date', label: 'Ship Date', sortable: true },
+  { key: 'total_shipping_cost', label: 'Total Cost', align: 'right' as const },
+  { key: 'allocation_method', label: 'Method' },
+  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+]
+
+async function loadMasters() {
+  const [e, o, p] = await Promise.all([
+    useApi<Expedition[]>('/expeditions'),
+    useApi<Po[]>('/purchase-orders'),
+    useApi<Product[]>('/products'),
+  ])
+  expeditions.value = e
+  approvedOrders.value = o.filter((po) => ['approved', 'partial_received'].includes(po.status))
+  products.value = p
+}
+
+async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [s, e, o, p] = await Promise.all([
-      useApi<Shipment[]>('/shipments'),
-      useApi<Expedition[]>('/expeditions'),
-      useApi<Po[]>('/purchase-orders'),
-      useApi<Product[]>('/products'),
-    ])
-    shipments.value = s.sort((a, b) => b.no_shipment.localeCompare(a.no_shipment))
-    expeditions.value = e
-    orders.value = o.filter((po) => ['approved', 'partial_received'].includes(po.status))
-    products.value = p
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<Shipment[]>(`/shipments?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
     loading.value = false
   }
+}
+
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
+}
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'status') {
+    statusFilter.value = value
+    page.value = 1
+    load()
+  }
+}
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
+}
+function onPageChange(p: number) {
+  page.value = p
+  load()
+}
+
+function expeditionName(id: string) {
+  return expeditions.value.find((e) => e.id === id)?.name || id
+}
+function productLabel(id: string) {
+  const p = products.value.find((p) => p.id === id)
+  return p ? `${p.sku} - ${p.name}` : id
+}
+function productForPoItem(poItemId: string) {
+  for (const items of Object.values(poItemsCache.value)) {
+    const found = items.find((i) => i.id === poItemId)
+    if (found) return productLabel(found.product_id)
+  }
+  return poItemId
+}
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('id-ID').format(n)
+}
+
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+function emptyForm() {
+  return {
+    expedition_id: '',
+    ship_date: new Date().toISOString().slice(0, 10),
+    total_shipping_cost: null as number | null,
+    allocation_method: 'per_value' as 'per_qty' | 'per_value' | 'per_weight',
+    po_ids: [] as string[],
+    items: [] as { po_item_id: string; qty_shipped: number | null; weight: number | null }[],
+  }
+}
+const form = ref(emptyForm())
+
+function openCreateModal() {
+  form.value = emptyForm()
+  poItemsCache.value = {}
+  createError.value = ''
+  showCreateModal.value = true
 }
 
 async function onTogglePo(poId: string, checked: boolean) {
@@ -69,7 +153,7 @@ async function onTogglePo(poId: string, checked: boolean) {
     }
     for (const item of poItemsCache.value[poId]) {
       const remaining = Number(item.qty_order) - Number(item.qty_received)
-      form.value.items.push({ po_item_id: item.id, qty_shipped: remaining })
+      form.value.items.push({ po_item_id: item.id, qty_shipped: remaining, weight: null })
     }
   } else {
     form.value.po_ids = form.value.po_ids.filter((id) => id !== poId)
@@ -78,50 +162,33 @@ async function onTogglePo(poId: string, checked: boolean) {
   }
 }
 
-function productForPoItem(poItemId: string) {
-  for (const items of Object.values(poItemsCache.value)) {
-    const found = items.find((i) => i.id === poItemId)
-    if (found) return productLabel(found.product_id)
-  }
-  return poItemId
-}
-
 async function createShipment() {
-  errorMsg.value = ''
+  createError.value = ''
+  creating.value = true
   try {
     await useApi('/shipments', { method: 'POST', body: form.value })
-    form.value = {
-      expedition_id: '',
-      ship_date: new Date().toISOString().slice(0, 10),
-      total_shipping_cost: 0,
-      allocation_method: 'per_value',
-      po_ids: [],
-      items: [],
-    }
-    await loadAll()
+    showCreateModal.value = false
+    page.value = 1
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat shipment'
+    createError.value = err?.data?.data?.message || 'Gagal membuat shipment'
+  } finally {
+    creating.value = false
   }
 }
 
-async function toggleExpand(shp: Shipment) {
-  if (expanded.value[shp.id]) {
-    expanded.value[shp.id] = null
-    return
-  }
-  const detail = await useApi<Shipment>(`/shipments/${shp.id}`)
-  expanded.value[shp.id] = detail
+// --- detail modal ---
+const showDetailModal = ref(false)
+const detailShipment = ref<Shipment | null>(null)
+async function openDetail(shp: Shipment) {
+  detailShipment.value = await useApi<Shipment>(`/shipments/${shp.id}`)
+  showDetailModal.value = true
 }
 
-function expeditionName(id: string) {
-  return expeditions.value.find((e) => e.id === id)?.name || id
-}
-function productLabel(id: string) {
-  const p = products.value.find((p) => p.id === id)
-  return p ? `${p.sku} - ${p.name}` : id
-}
-
-onMounted(loadAll)
+onMounted(async () => {
+  await loadMasters()
+  await load()
+})
 </script>
 
 <template>
@@ -129,172 +196,121 @@ onMounted(loadAll)
     <h1>Shipments</h1>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="create-form" @submit.prevent="createShipment">
-      <div class="row">
-        <label>
-          Expedition
-          <select v-model="form.expedition_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="e in expeditions" :key="e.id" :value="e.id">{{ e.name }}</option>
-          </select>
-        </label>
-        <label>
-          Ship Date
-          <input v-model="form.ship_date" type="date" required />
-        </label>
-        <label>
-          Total Shipping Cost
-          <input v-model.number="form.total_shipping_cost" type="number" step="any" min="0" required />
-        </label>
-        <label>
-          Allocation Method
-          <select v-model="form.allocation_method">
-            <option value="per_qty">Per Qty</option>
-            <option value="per_value">Per Value</option>
-            <option value="per_weight">Per Weight</option>
-          </select>
-        </label>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      search-placeholder="Cari No Shipment..."
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat Shipment</BaseButton>
+      </template>
+      <template #cell-no_shipment="{ row }">
+        <button class="link-cell" @click="openDetail(row)">{{ row.no_shipment }}</button>
+      </template>
+      <template #cell-expedition_id="{ value }">{{ expeditionName(value) }}</template>
+      <template #cell-total_shipping_cost="{ value }">Rp {{ fmtCurrency(Number(value)) }}</template>
+      <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Detail</BaseButton>
+      </template>
+    </BaseDataTable>
+
+    <BaseModal v-model="showCreateModal" title="Buat Shipment" size="fullscreen">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect v-model="form.expedition_id" label="Expedition" required :options="expeditions.map((e) => ({ value: e.id, label: e.name }))" />
+        <BaseDatePicker v-model="form.ship_date" label="Ship Date" required />
+        <BaseNumberInput v-model="form.total_shipping_cost" label="Total Shipping Cost" required />
+        <BaseSelect
+          v-model="form.allocation_method"
+          label="Allocation Method"
+          :options="[
+            { value: 'per_qty', label: 'Per Qty' },
+            { value: 'per_value', label: 'Per Value' },
+            { value: 'per_weight', label: 'Per Weight' },
+          ]"
+        />
       </div>
 
       <div class="po-select">
-        <div class="hint">Pilih PO yang mau dikirim (menu hanya menampilkan PO berstatus approved/partial_received):</div>
-        <label v-for="po in orders" :key="po.id" class="po-checkbox">
+        <div class="hint">Pilih PO yang mau dikirim (hanya PO berstatus approved/partial_received):</div>
+        <label v-for="po in approvedOrders" :key="po.id" class="po-checkbox">
           <input type="checkbox" @change="onTogglePo(po.id, ($event.target as HTMLInputElement).checked)" />
           {{ po.no_po }}
         </label>
       </div>
 
-      <table v-if="form.items.length > 0" class="item-table">
+      <table v-if="form.items.length > 0" class="line-items-table">
         <thead>
           <tr>
-            <th>Product (via PO item)</th><th>Qty Shipped</th>
-            <th v-if="form.allocation_method === 'per_weight'">Weight</th>
+            <th>Product (via PO item)</th><th class="col-narrow">Qty Shipped</th>
+            <th v-if="form.allocation_method === 'per_weight'" class="col-narrow">Weight</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="item.po_item_id">
             <td>{{ productForPoItem(item.po_item_id) }}</td>
-            <td><input v-model.number="form.items[idx].qty_shipped" type="number" step="any" min="0.0001" /></td>
-            <td v-if="form.allocation_method === 'per_weight'">
-              <input v-model.number="form.items[idx].weight" type="number" step="any" min="0.0001" />
+            <td class="col-narrow"><BaseNumberInput v-model="form.items[idx].qty_shipped" /></td>
+            <td v-if="form.allocation_method === 'per_weight'" class="col-narrow">
+              <BaseNumberInput v-model="form.items[idx].weight" />
             </td>
           </tr>
         </tbody>
       </table>
 
-      <button type="submit" :disabled="form.items.length === 0">Buat Shipment (auto-allocate cost)</button>
-    </form>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" :disabled="form.items.length === 0" @click="createShipment">Buat Shipment (auto-allocate cost)</BaseButton>
+      </template>
+    </BaseModal>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="shp-table">
-      <thead>
-        <tr><th>No Shipment</th><th>Expedition</th><th>Ship Date</th><th>Total Cost</th><th>Method</th></tr>
-      </thead>
-      <tbody>
-        <template v-for="shp in shipments" :key="shp.id">
-          <tr>
-            <td><button class="link" @click="toggleExpand(shp)">{{ shp.no_shipment }}</button></td>
-            <td>{{ expeditionName(shp.expedition_id) }}</td>
-            <td>{{ shp.ship_date }}</td>
-            <td>{{ shp.total_shipping_cost }}</td>
-            <td>{{ shp.allocation_method }}</td>
-          </tr>
-          <tr v-if="expanded[shp.id]">
-            <td colspan="5">
-              <table class="detail-table">
-                <thead><tr><th>PO Item ID</th><th>Qty Shipped</th><th>Weight</th><th>Allocated Cost / Unit</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in expanded[shp.id]?.items" :key="item.id">
-                    <td class="mono">{{ item.po_item_id.slice(0, 8) }}...</td>
-                    <td>{{ item.qty_shipped }}</td>
-                    <td>{{ item.weight ?? '-' }}</td>
-                    <td>{{ item.allocated_shipping_cost_per_unit }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-        <tr v-if="shipments.length === 0"><td colspan="5">Belum ada shipment</td></tr>
-      </tbody>
-    </table>
+    <BaseModal v-model="showDetailModal" title="Detail Shipment" size="lg">
+      <div v-if="detailShipment" class="detail-body">
+        <div class="detail-meta">
+          <div><strong>No Shipment:</strong> {{ detailShipment.no_shipment }}</div>
+          <div><strong>Expedition:</strong> {{ expeditionName(detailShipment.expedition_id) }}</div>
+          <div><strong>Ship Date:</strong> {{ detailShipment.ship_date }}</div>
+          <div><strong>Total Cost:</strong> Rp {{ fmtCurrency(Number(detailShipment.total_shipping_cost)) }}</div>
+          <div><strong>Method:</strong> {{ detailShipment.allocation_method }}</div>
+        </div>
+        <table class="line-items-table">
+          <thead><tr><th>PO Item ID</th><th>Qty Shipped</th><th>Weight</th><th>Allocated Cost / Unit</th></tr></thead>
+          <tbody>
+            <tr v-for="item in detailShipment.items" :key="item.id">
+              <td class="mono">{{ item.po_item_id.slice(0, 8) }}...</td>
+              <td>{{ item.qty_shipped }}</td>
+              <td>{{ item.weight ?? '-' }}</td>
+              <td>{{ item.allocated_shipping_cost_per_unit }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
 <style scoped>
-.create-form {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.row label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-.po-select {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.hint {
-  font-size: 12px;
-  color: #64748b;
-}
-.po-checkbox {
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-input, select {
-  padding: 6px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-.item-table, .shp-table, .detail-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.item-table th, .item-table td, .shp-table th, .shp-table td, .detail-table th, .detail-table td {
-  text-align: left;
-  padding: 6px 8px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 13px;
-}
-.shp-table {
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.detail-table {
-  background: #f8fafc;
-}
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.po-select { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.hint { font-size: 12px; color: var(--color-text-muted); }
+.po-checkbox { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.link-cell { background: none; border: none; color: var(--color-info); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.line-items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.line-items-table th { text-align: left; font-size: 12px; color: var(--color-text-muted); padding: 6px 8px; }
+.line-items-table td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid var(--color-neutral-bg); }
+.col-narrow { width: 150px; }
 .mono { font-family: monospace; }
-button {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
-  cursor: pointer;
-  align-self: flex-start;
-}
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-button.link {
-  background: none;
-  color: #2563eb;
-  padding: 2px 6px;
-}
-.error { color: #dc2626; }
+.detail-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; font-size: 13px; }
 </style>

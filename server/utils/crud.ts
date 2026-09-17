@@ -15,6 +15,9 @@ export interface PagedListOptions {
   sortDir?: 'asc' | 'desc'
   statusColumn?: AnyColumn
   statusValue?: string
+  // Generic exact-match filters beyond the boolean is_active toggle above —
+  // used by transactional lists (PO status, warehouse_id, etc).
+  extraFilters?: { column: AnyColumn; value: string }[]
 }
 
 // Opt-in server-side pagination for the Master Data list endpoints (only
@@ -30,6 +33,9 @@ export async function listPaged(table: PgTableWithColumns<any>, options: PagedLi
   }
   if (options.statusColumn && options.statusValue) {
     conditions.push(eq(options.statusColumn, options.statusValue === 'true'))
+  }
+  for (const f of options.extraFilters ?? []) {
+    if (f.value) conditions.push(eq(f.column, f.value))
   }
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -64,6 +70,22 @@ export function parsePagingQuery(event: any) {
     sortBy: typeof q.sortBy === 'string' ? q.sortBy : undefined,
     sortDir: q.sortDir === 'desc' ? ('desc' as const) : ('asc' as const),
     statusValue: typeof q.is_active === 'string' ? q.is_active : undefined,
+  }
+}
+
+// Same opt-in contract as parsePagingQuery, but without the is_active-
+// specific field — for transactional lists (PO/Shipment/Receiving/etc)
+// whose own endpoint reads its own extra filters (status, warehouse_id)
+// directly and passes them to listPaged as `extraFilters`.
+export function parseBasicPagingQuery(event: any) {
+  const q = getQuery(event)
+  if (typeof q.page !== 'string') return null
+  return {
+    page: Math.max(1, Number(q.page) || 1),
+    pageSize: Math.min(100, Math.max(1, Number(q.pageSize) || 20)),
+    search: typeof q.search === 'string' && q.search.length > 0 ? q.search : undefined,
+    sortBy: typeof q.sortBy === 'string' ? q.sortBy : undefined,
+    sortDir: q.sortDir === 'desc' ? ('desc' as const) : ('asc' as const),
   }
 }
 

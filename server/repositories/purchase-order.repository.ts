@@ -2,11 +2,33 @@ import { eq, sql } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { purchaseOrders, purchaseOrderItems } from '../db/schema'
+import { listPaged, type PagedListOptions } from '../utils/crud'
 
 type Tx = PgTransaction<any, any, any>
 
+const SORT_COLUMNS: Record<string, any> = {
+  no_po: purchaseOrders.no_po,
+  order_date: purchaseOrders.order_date,
+  status: purchaseOrders.status,
+}
+
 export function listOrders() {
   return db.select().from(purchaseOrders)
+}
+
+export function listOrdersPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+) {
+  const extraFilters = []
+  if (opts.status) extraFilters.push({ column: purchaseOrders.status, value: opts.status })
+  if (opts.warehouseId) extraFilters.push({ column: purchaseOrders.warehouse_id, value: opts.warehouseId })
+  return listPaged(purchaseOrders, {
+    ...opts,
+    searchColumns: [purchaseOrders.no_po],
+    sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || purchaseOrders.order_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
 }
 
 export function findOrder(id: string) {

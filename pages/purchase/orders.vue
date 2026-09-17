@@ -19,35 +19,62 @@ interface Po {
   items?: PoItem[]
 }
 
-const orders = ref<Po[]>([])
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'waiting_approval', label: 'Waiting Approval' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'partial_received', label: 'Partial Received' },
+  { value: 'closed', label: 'Closed' },
+]
+
+const rows = ref<Po[]>([])
+const totalRows = ref(0)
 const suppliers = ref<Supplier[]>([])
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
-const expanded = ref<Record<string, Po | null>>({})
 
-const form = ref({
-  supplier_id: '',
-  warehouse_id: '',
-  order_date: new Date().toISOString().slice(0, 10),
-  items: [{ product_id: '', qty_order: 1, unit_price: 0 }],
-})
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const statusFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'order_date', direction: 'desc' })
 
-async function loadAll() {
+const columns = [
+  { key: 'no_po', label: 'No PO', sortable: true },
+  { key: 'supplier_id', label: 'Supplier' },
+  { key: 'warehouse_id', label: 'Warehouse' },
+  { key: 'order_date', label: 'Order Date', sortable: true },
+  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+]
+
+async function loadMasters() {
+  const [s, w, p] = await Promise.all([
+    useApi<Supplier[]>('/suppliers'),
+    useApi<Warehouse[]>('/warehouses'),
+    useApi<Product[]>('/products'),
+  ])
+  suppliers.value = s
+  warehouses.value = w
+  products.value = p
+}
+
+async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [o, s, w, p] = await Promise.all([
-      useApi<Po[]>('/purchase-orders'),
-      useApi<Supplier[]>('/suppliers'),
-      useApi<Warehouse[]>('/warehouses'),
-      useApi<Product[]>('/products'),
-    ])
-    orders.value = o.sort((a, b) => b.no_po.localeCompare(a.no_po))
-    suppliers.value = s
-    warehouses.value = w
-    products.value = p
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<Po[]>(`/purchase-orders?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -55,64 +82,25 @@ async function loadAll() {
   }
 }
 
-function addItemRow() {
-  form.value.items.push({ product_id: '', qty_order: 1, unit_price: 0 })
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
 }
-function removeItemRow(idx: number) {
-  form.value.items.splice(idx, 1)
-}
-
-async function createPo() {
-  errorMsg.value = ''
-  try {
-    await useApi('/purchase-orders', { method: 'POST', body: form.value })
-    form.value = {
-      supplier_id: '',
-      warehouse_id: '',
-      order_date: new Date().toISOString().slice(0, 10),
-      items: [{ product_id: '', qty_order: 1, unit_price: 0 }],
-    }
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat PO'
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'status') {
+    statusFilter.value = value
+    page.value = 1
+    load()
   }
 }
-
-async function toggleExpand(po: Po) {
-  if (expanded.value[po.id]) {
-    expanded.value[po.id] = null
-    return
-  }
-  const detail = await useApi<Po>(`/purchase-orders/${po.id}`)
-  expanded.value[po.id] = detail
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
 }
-
-async function submitPo(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/purchase-orders/${id}/submit`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal submit PO'
-  }
-}
-async function approvePo(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/purchase-orders/${id}/approve`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal approve PO'
-  }
-}
-async function rejectPo(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/purchase-orders/${id}/reject`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal reject PO'
-  }
+function onPageChange(p: number) {
+  page.value = p
+  load()
 }
 
 function supplierName(id: string) {
@@ -126,180 +114,283 @@ function productLabel(id: string) {
   return p ? `${p.sku} - ${p.name}` : id
 }
 
-onMounted(loadAll)
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+function emptyForm() {
+  return {
+    supplier_id: '',
+    warehouse_id: '',
+    order_date: new Date().toISOString().slice(0, 10),
+    items: [{ product_id: '', qty_order: null as number | null, unit_price: null as number | null }],
+  }
+}
+const form = ref(emptyForm())
+
+function openCreateModal() {
+  form.value = emptyForm()
+  createError.value = ''
+  showCreateModal.value = true
+}
+function addItemRow() {
+  form.value.items.push({ product_id: '', qty_order: null, unit_price: null })
+}
+function removeItemRow(idx: number) {
+  form.value.items.splice(idx, 1)
+}
+function itemSubtotal(item: { qty_order: number | null; unit_price: number | null }) {
+  return (item.qty_order ?? 0) * (item.unit_price ?? 0)
+}
+const formTotal = computed(() => form.value.items.reduce((sum, i) => sum + itemSubtotal(i), 0))
+function fmtCurrency(n: number) {
+  return new Intl.NumberFormat('id-ID').format(n)
+}
+
+async function createPo() {
+  createError.value = ''
+  creating.value = true
+  try {
+    await useApi('/purchase-orders', { method: 'POST', body: form.value })
+    showCreateModal.value = false
+    page.value = 1
+    await load()
+  } catch (err: any) {
+    createError.value = err?.data?.data?.message || 'Gagal membuat PO'
+  } finally {
+    creating.value = false
+  }
+}
+
+// --- detail modal ---
+const showDetailModal = ref(false)
+const detailPo = ref<Po | null>(null)
+async function openDetail(po: Po) {
+  detailPo.value = await useApi<Po>(`/purchase-orders/${po.id}`)
+  showDetailModal.value = true
+}
+
+// --- action confirm dialog (submit/approve/reject share one dialog) ---
+const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
+  show: false,
+  title: '',
+  message: '',
+  confirmText: '',
+  variant: 'primary',
+  loading: false,
+  run: null,
+})
+
+function askAction(po: Po, action: 'submit' | 'approve' | 'reject') {
+  const labels = {
+    submit: { title: 'Submit PO?', message: `PO ${po.no_po} akan dikirim untuk persetujuan.`, confirmText: 'Ya, Submit', variant: 'primary' as const },
+    approve: { title: 'Approve PO?', message: `PO ${po.no_po} akan disetujui dan lanjut ke tahap pengiriman.`, confirmText: 'Ya, Approve', variant: 'primary' as const },
+    reject: { title: 'Reject PO?', message: `PO ${po.no_po} akan ditolak.`, confirmText: 'Ya, Reject', variant: 'danger' as const },
+  }[action]
+  confirmState.value = {
+    show: true,
+    ...labels,
+    loading: false,
+    run: async () => {
+      await useApi(`/purchase-orders/${po.id}/${action}`, { method: 'POST' })
+      await load()
+    },
+  }
+}
+
+async function runConfirmedAction() {
+  if (!confirmState.value.run) return
+  confirmState.value.loading = true
+  try {
+    await confirmState.value.run()
+    confirmState.value.show = false
+  } catch (err: any) {
+    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
+    confirmState.value.show = false
+  } finally {
+    confirmState.value.loading = false
+  }
+}
+
+onMounted(async () => {
+  await loadMasters()
+  await load()
+})
 </script>
 
 <template>
   <div>
-    <h1>Purchase Orders</h1>
+    <div class="header-row">
+      <h1>Purchase Orders</h1>
+    </div>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="create-form" @submit.prevent="createPo">
-      <div class="row">
-        <label>
-          Supplier
-          <select v-model="form.supplier_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="s in suppliers" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </select>
-        </label>
-        <label>
-          Warehouse
-          <select v-model="form.warehouse_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </label>
-        <label>
-          Order Date
-          <input v-model="form.order_date" type="date" required />
-        </label>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      search-placeholder="Cari No PO..."
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat PO</BaseButton>
+      </template>
+      <template #cell-no_po="{ row }">
+        <button class="link-cell" @click="openDetail(row)">{{ row.no_po }}</button>
+      </template>
+      <template #cell-supplier_id="{ value }">{{ supplierName(value) }}</template>
+      <template #cell-warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+      <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Detail</BaseButton>
+        <BaseButton v-if="row.status === 'draft'" variant="secondary" size="sm" @click="askAction(row, 'submit')">Submit</BaseButton>
+        <template v-if="row.status === 'waiting_approval'">
+          <BaseButton size="sm" @click="askAction(row, 'approve')">Approve</BaseButton>
+          <BaseButton variant="danger" size="sm" @click="askAction(row, 'reject')">Reject</BaseButton>
+        </template>
+      </template>
+    </BaseDataTable>
+
+    <!-- CREATE MODAL -->
+    <BaseModal v-model="showCreateModal" title="Buat Purchase Order" size="fullscreen">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect v-model="form.supplier_id" label="Supplier" required :options="suppliers.map((s) => ({ value: s.id, label: s.name }))" />
+        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseDatePicker v-model="form.order_date" label="Order Date" required />
       </div>
 
-      <table class="item-table">
+      <table class="line-items-table">
         <thead>
-          <tr><th>Product</th><th>Qty</th><th>Unit Price</th><th></th></tr>
+          <tr><th>Produk</th><th class="col-narrow">Qty</th><th class="col-narrow">Harga Satuan</th><th class="col-narrow">Subtotal</th><th></th></tr>
         </thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td>
-              <select v-model="item.product_id" required>
-                <option value="">-- pilih produk --</option>
-                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} - {{ p.name }}</option>
-              </select>
-            </td>
-            <td><input v-model.number="item.qty_order" type="number" step="any" min="0.0001" required /></td>
-            <td><input v-model.number="item.unit_price" type="number" step="any" min="0" required /></td>
-            <td><button type="button" class="link danger" @click="removeItemRow(idx)">Hapus</button></td>
+            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.qty_order" required /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.unit_price" required /></td>
+            <td class="col-narrow subtotal-cell">Rp {{ fmtCurrency(itemSubtotal(item)) }}</td>
+            <td><BaseButton variant="ghost" size="sm" @click="removeItemRow(idx)">Hapus</BaseButton></td>
           </tr>
         </tbody>
+        <tfoot>
+          <tr><td colspan="3" class="total-label">Total</td><td colspan="2" class="total-value">Rp {{ fmtCurrency(formTotal) }}</td></tr>
+        </tfoot>
       </table>
-      <button type="button" class="secondary" @click="addItemRow">+ Tambah Item</button>
-      <button type="submit">Buat PO</button>
-    </form>
+      <BaseButton variant="secondary" size="sm" @click="addItemRow">+ Tambah Item</BaseButton>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="po-table">
-      <thead>
-        <tr><th>No PO</th><th>Supplier</th><th>Warehouse</th><th>Order Date</th><th>Status</th><th>Aksi</th></tr>
-      </thead>
-      <tbody>
-        <template v-for="po in orders" :key="po.id">
-          <tr>
-            <td><button class="link" @click="toggleExpand(po)">{{ po.no_po }}</button></td>
-            <td>{{ supplierName(po.supplier_id) }}</td>
-            <td>{{ warehouseName(po.warehouse_id) }}</td>
-            <td>{{ po.order_date }}</td>
-            <td><span class="status" :class="`status-${po.status}`">{{ po.status }}</span></td>
-            <td>
-              <button v-if="po.status === 'draft'" class="approve" @click="submitPo(po.id)">Submit</button>
-              <template v-if="po.status === 'waiting_approval'">
-                <button class="approve" @click="approvePo(po.id)">Approve</button>
-                <button class="reject" @click="rejectPo(po.id)">Reject</button>
-              </template>
-            </td>
-          </tr>
-          <tr v-if="expanded[po.id]">
-            <td colspan="6">
-              <table class="detail-table">
-                <thead><tr><th>Product</th><th>Qty Order</th><th>Unit Price</th><th>Qty Received</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in expanded[po.id]?.items" :key="item.id">
-                    <td>{{ productLabel(item.product_id) }}</td>
-                    <td>{{ item.qty_order }}</td>
-                    <td>{{ item.unit_price }}</td>
-                    <td>{{ item.qty_received }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-        <tr v-if="orders.length === 0"><td colspan="6">Belum ada PO</td></tr>
-      </tbody>
-    </table>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" @click="createPo">Buat PO</BaseButton>
+      </template>
+    </BaseModal>
+
+    <!-- DETAIL MODAL -->
+    <BaseModal v-model="showDetailModal" title="Detail Purchase Order" size="lg">
+      <div v-if="detailPo" class="detail-body">
+        <div class="detail-meta">
+          <div><strong>No PO:</strong> {{ detailPo.no_po }}</div>
+          <div><strong>Supplier:</strong> {{ supplierName(detailPo.supplier_id) }}</div>
+          <div><strong>Warehouse:</strong> {{ warehouseName(detailPo.warehouse_id) }}</div>
+          <div><strong>Order Date:</strong> {{ detailPo.order_date }}</div>
+          <div><strong>Status:</strong> <BaseBadge :status="detailPo.status" /></div>
+        </div>
+        <table class="line-items-table">
+          <thead><tr><th>Produk</th><th>Qty Order</th><th>Unit Price</th><th>Qty Received</th></tr></thead>
+          <tbody>
+            <tr v-for="item in detailPo.items" :key="item.id">
+              <td>{{ productLabel(item.product_id) }}</td>
+              <td>{{ item.qty_order }}</td>
+              <td>{{ item.unit_price }}</td>
+              <td>{{ item.qty_received }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseConfirmDialog
+      v-model="confirmState.show"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :confirm-text="confirmState.confirmText"
+      :variant="confirmState.variant"
+      :loading="confirmState.loading"
+      @confirm="runConfirmedAction"
+    />
   </div>
 </template>
 
 <style scoped>
-.create-form {
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
+.header-row {
+  margin-bottom: 16px;
+}
+.error {
+  color: var(--color-danger);
+  margin-bottom: 12px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
   margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
-.row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.row label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.link-cell {
+  background: none;
+  border: none;
+  color: var(--color-info);
+  cursor: pointer;
+  padding: 0;
   font-size: 13px;
+  text-decoration: underline;
 }
-input, select {
-  padding: 6px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-.item-table, .po-table, .detail-table {
+.line-items-table {
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 12px;
 }
-.item-table th, .item-table td, .po-table th, .po-table td, .detail-table th, .detail-table td {
+.line-items-table th {
   text-align: left;
+  font-size: 12px;
+  color: var(--color-text-muted);
   padding: 6px 8px;
-  border-bottom: 1px solid #e2e8f0;
+}
+.line-items-table td {
+  padding: 4px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-neutral-bg);
+}
+.col-narrow {
+  width: 150px;
+}
+.subtotal-cell {
+  padding-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.total-label {
+  text-align: right;
+  font-weight: 600;
+  padding-top: 12px;
+}
+.total-value {
+  font-weight: 700;
+  padding-top: 12px;
+}
+.detail-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
   font-size: 13px;
 }
-.po-table {
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.detail-table {
-  background: #f8fafc;
-}
-button {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
-  cursor: pointer;
-  margin-right: 4px;
-}
-button.secondary {
-  background: #94a3b8;
-  align-self: flex-start;
-}
-button.link {
-  background: none;
-  color: #2563eb;
-  padding: 2px 6px;
-}
-button.link.danger {
-  color: #dc2626;
-}
-button.approve {
-  background: #16a34a;
-}
-button.reject {
-  background: #dc2626;
-}
-.status {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: #e2e8f0;
-}
-.status-approved, .status-closed { background: #dcfce7; color: #16a34a; }
-.status-waiting_approval, .status-partial_received { background: #fef3c7; color: #b45309; }
-.status-rejected { background: #fee2e2; color: #dc2626; }
-.error { color: #dc2626; }
 </style>
