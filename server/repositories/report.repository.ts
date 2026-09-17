@@ -29,6 +29,7 @@ export function listOutstandingPurchaseOrders(filters: {
   warehouseId?: string
   dateFrom?: string
   dateTo?: string
+  productId?: string
   productIds?: string[]
 }) {
   const conditions = [inArray(purchaseOrders.status, ['approved', 'partial_received'])]
@@ -36,6 +37,7 @@ export function listOutstandingPurchaseOrders(filters: {
   if (filters.warehouseId) conditions.push(eq(purchaseOrders.warehouse_id, filters.warehouseId))
   if (filters.dateFrom) conditions.push(gte(purchaseOrders.order_date, filters.dateFrom))
   if (filters.dateTo) conditions.push(lte(purchaseOrders.order_date, filters.dateTo))
+  if (filters.productId) conditions.push(eq(purchaseOrderItems.product_id, filters.productId))
   if (filters.productIds) conditions.push(inArray(purchaseOrderItems.product_id, filters.productIds))
 
   return db
@@ -194,8 +196,14 @@ export function getStockCard(filters: {
 }) {
   const conditions = [eq(stockLedger.product_id, filters.productId)]
   if (filters.warehouseId) conditions.push(eq(stockLedger.warehouse_id, filters.warehouseId))
-  if (filters.dateFrom) conditions.push(gte(stockLedger.transaction_date, new Date(filters.dateFrom)))
-  if (filters.dateTo) conditions.push(lte(stockLedger.transaction_date, new Date(filters.dateTo)))
+  // transaction_date is a timestamp, but date_from/date_to arrive as
+  // date-only strings ("2026-09-17"). new Date() on a bare date string
+  // parses to that day's UTC midnight, so an unadjusted `lte` would cut
+  // off every entry recorded later that same day (i.e. almost all of
+  // them) — mirror the +T23:59:59.999Z end-of-day adjustment already used
+  // for the same reason in dashboard.repository.ts's trend query.
+  if (filters.dateFrom) conditions.push(gte(stockLedger.transaction_date, new Date(`${filters.dateFrom}T00:00:00.000Z`)))
+  if (filters.dateTo) conditions.push(lte(stockLedger.transaction_date, new Date(`${filters.dateTo}T23:59:59.999Z`)))
 
   return db
     .select()

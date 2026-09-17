@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const productIds = categoryId && !productId ? await resolveProductIdsForCategory(categoryId) : undefined
 
   const [outstanding, priceHistory] = await Promise.all([
-    listOutstandingPurchaseOrders({ supplierId, warehouseId, dateFrom, dateTo, productIds }),
+    listOutstandingPurchaseOrders({ supplierId, warehouseId, dateFrom, dateTo, productId, productIds }),
     listPurchasePriceHistory({ productId, supplierId, dateFrom, dateTo, productIds }),
   ])
 
