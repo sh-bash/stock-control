@@ -3,6 +3,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { stockLayers, stockLedger, stockSummary } from '../db/schema'
 import { failure } from '../utils/response'
+import { listPaged, type PagedListOptions } from '../utils/crud'
 
 type Tx = PgTransaction<any, any, any>
 
@@ -239,12 +240,56 @@ export function listStockSummary() {
   return db.select().from(stockSummary)
 }
 
+const SUMMARY_SORT_COLUMNS: Record<string, any> = {
+  qty_on_hand: stockSummary.qty_on_hand,
+  qty_reserved: stockSummary.qty_reserved,
+  qty_available: stockSummary.qty_available,
+  total_value: stockSummary.total_value,
+}
+
+export function listStockSummaryPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; productId?: string; warehouseId?: string },
+) {
+  const extraFilters = []
+  if (opts.productId) extraFilters.push({ column: stockSummary.product_id, value: opts.productId })
+  if (opts.warehouseId) extraFilters.push({ column: stockSummary.warehouse_id, value: opts.warehouseId })
+  return listPaged(stockSummary, {
+    ...opts,
+    sortColumn: (opts.sortBy && SUMMARY_SORT_COLUMNS[opts.sortBy]) || stockSummary.total_value,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
+}
+
 export function listStockLayers(productId?: string, warehouseId?: string) {
   const conditions = []
   if (productId) conditions.push(eq(stockLayers.product_id, productId))
   if (warehouseId) conditions.push(eq(stockLayers.warehouse_id, warehouseId))
   const query = db.select().from(stockLayers)
   return conditions.length > 0 ? query.where(and(...conditions)) : query
+}
+
+const LAYER_SORT_COLUMNS: Record<string, any> = {
+  receive_date: stockLayers.receive_date,
+  qty_original: stockLayers.qty_original,
+  qty_remaining: stockLayers.qty_remaining,
+  hpp: stockLayers.hpp,
+  status: stockLayers.status,
+}
+
+export function listStockLayersPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; productId?: string; warehouseId?: string; status?: string },
+) {
+  const extraFilters = []
+  if (opts.productId) extraFilters.push({ column: stockLayers.product_id, value: opts.productId })
+  if (opts.warehouseId) extraFilters.push({ column: stockLayers.warehouse_id, value: opts.warehouseId })
+  if (opts.status) extraFilters.push({ column: stockLayers.status, value: opts.status })
+  return listPaged(stockLayers, {
+    ...opts,
+    sortColumn: (opts.sortBy && LAYER_SORT_COLUMNS[opts.sortBy]) || stockLayers.receive_date,
+    sortDir: opts.sortDir ?? 'asc',
+    extraFilters,
+  })
 }
 
 // Every currently-sellable layer, for the aging-check job to walk.
@@ -258,4 +303,35 @@ export function listStockLedger(productId?: string, warehouseId?: string) {
   if (warehouseId) conditions.push(eq(stockLedger.warehouse_id, warehouseId))
   const query = db.select().from(stockLedger)
   return conditions.length > 0 ? query.where(and(...conditions)) : query
+}
+
+const LEDGER_SORT_COLUMNS: Record<string, any> = {
+  transaction_date: stockLedger.transaction_date,
+  transaction_type: stockLedger.transaction_type,
+  qty_in: stockLedger.qty_in,
+  qty_out: stockLedger.qty_out,
+}
+
+// The one place in this app where server-side pagination is not optional —
+// stock_ledger is append-only across the lifetime of the business and is
+// the exact "could be millions of rows" case called out when this
+// pagination pass was scoped. Filters straight onto the Fase 3 composite
+// index (product_id, warehouse_id, transaction_date).
+export function listStockLedgerPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn' | 'dateColumn'> & {
+    sortBy?: string
+    productId?: string
+    warehouseId?: string
+  },
+) {
+  const extraFilters = []
+  if (opts.productId) extraFilters.push({ column: stockLedger.product_id, value: opts.productId })
+  if (opts.warehouseId) extraFilters.push({ column: stockLedger.warehouse_id, value: opts.warehouseId })
+  return listPaged(stockLedger, {
+    ...opts,
+    sortColumn: (opts.sortBy && LEDGER_SORT_COLUMNS[opts.sortBy]) || stockLedger.transaction_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+    dateColumn: stockLedger.transaction_date,
+  })
 }

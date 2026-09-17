@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, or, sql, type AnyColumn } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, ilike, lte, or, sql, type AnyColumn } from 'drizzle-orm'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 
@@ -18,6 +18,14 @@ export interface PagedListOptions {
   // Generic exact-match filters beyond the boolean is_active toggle above —
   // used by transactional lists (PO status, warehouse_id, etc).
   extraFilters?: { column: AnyColumn; value: string }[]
+  // Date-range filter — dateFrom/dateTo arrive as bare "YYYY-MM-DD" strings
+  // and are anchored to that day's start/end-of-day so a `timestamp` column
+  // (e.g. stock_ledger.transaction_date) doesn't silently drop same-day
+  // rows the way getStockCard's date_to once did (see report.repository.ts
+  // for that bug/fix) — works equally correctly against a `date` column.
+  dateColumn?: AnyColumn
+  dateFrom?: string
+  dateTo?: string
 }
 
 // Opt-in server-side pagination for the Master Data list endpoints (only
@@ -36,6 +44,12 @@ export async function listPaged(table: PgTableWithColumns<any>, options: PagedLi
   }
   for (const f of options.extraFilters ?? []) {
     if (f.value) conditions.push(eq(f.column, f.value))
+  }
+  if (options.dateColumn && options.dateFrom) {
+    conditions.push(gte(options.dateColumn, new Date(`${options.dateFrom}T00:00:00.000Z`) as any))
+  }
+  if (options.dateColumn && options.dateTo) {
+    conditions.push(lte(options.dateColumn, new Date(`${options.dateTo}T23:59:59.999Z`) as any))
   }
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -86,6 +100,8 @@ export function parseBasicPagingQuery(event: any) {
     search: typeof q.search === 'string' && q.search.length > 0 ? q.search : undefined,
     sortBy: typeof q.sortBy === 'string' ? q.sortBy : undefined,
     sortDir: q.sortDir === 'desc' ? ('desc' as const) : ('asc' as const),
+    dateFrom: typeof q.date_from === 'string' && q.date_from.length > 0 ? q.date_from : undefined,
+    dateTo: typeof q.date_to === 'string' && q.date_to.length > 0 ? q.date_to : undefined,
   }
 }
 

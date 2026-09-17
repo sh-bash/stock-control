@@ -13,35 +13,55 @@ interface Transfer {
   items?: TransferItem[]
 }
 
-const transfers = ref<Transfer[]>([])
+const STATUS_OPTIONS = [{ value: 'completed', label: 'Completed' }]
+
+const rows = ref<Transfer[]>([])
+const totalRows = ref(0)
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
 const layers = ref<Layer[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
-const expanded = ref<Record<string, Transfer | null>>({})
 
-const form = ref({
-  from_warehouse_id: '',
-  to_warehouse_id: '',
-  transfer_date: new Date().toISOString().slice(0, 10),
-  items: [{ product_id: '', stock_layer_id: '', qty: 1 }],
-})
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const statusFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'transfer_date', direction: 'desc' })
 
-async function loadAll() {
+const columns = [
+  { key: 'no_transfer', label: 'No Transfer', sortable: true },
+  { key: 'from_warehouse_id', label: 'From' },
+  { key: 'to_warehouse_id', label: 'To' },
+  { key: 'transfer_date', label: 'Transfer Date', sortable: true },
+  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+]
+
+async function loadMasters() {
+  const [w, p, l] = await Promise.all([
+    useApi<Warehouse[]>('/warehouses'),
+    useApi<Product[]>('/products'),
+    useApi<Layer[]>('/stock/layers'),
+  ])
+  warehouses.value = w
+  products.value = p
+  layers.value = l.filter((x) => x.status === 'active' && Number(x.qty_remaining) > 0)
+}
+
+async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [t, w, p, l] = await Promise.all([
-      useApi<Transfer[]>('/stock-transfers'),
-      useApi<Warehouse[]>('/warehouses'),
-      useApi<Product[]>('/products'),
-      useApi<Layer[]>('/stock/layers'),
-    ])
-    transfers.value = t.sort((a, b) => b.no_transfer.localeCompare(a.no_transfer))
-    warehouses.value = w
-    products.value = p
-    layers.value = l.filter((x) => x.status === 'active' && Number(x.qty_remaining) > 0)
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<Transfer[]>(`/stock-transfers?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -49,12 +69,62 @@ async function loadAll() {
   }
 }
 
-function layersForWarehouse(warehouseId: string) {
-  return layers.value.filter((l) => l.warehouse_id === warehouseId)
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
+}
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'status') {
+    statusFilter.value = value
+    page.value = 1
+    load()
+  }
+}
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
+}
+function onPageChange(p: number) {
+  page.value = p
+  load()
 }
 
+function warehouseName(id: string) {
+  return warehouses.value.find((w) => w.id === id)?.name || id
+}
+function productLabel(id: string) {
+  const p = products.value.find((p) => p.id === id)
+  return p ? `${p.sku} - ${p.name}` : id
+}
+function layerLabel(l: Layer) {
+  return `${productLabel(l.product_id)} (sisa ${l.qty_remaining}, hpp ${l.hpp}, ${l.receive_date})`
+}
+function layerOptionsForWarehouse(warehouseId: string) {
+  return layers.value.filter((l) => l.warehouse_id === warehouseId).map((l) => ({ value: l.id, label: layerLabel(l) }))
+}
+
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+function emptyForm() {
+  return {
+    from_warehouse_id: '',
+    to_warehouse_id: '',
+    transfer_date: new Date().toISOString().slice(0, 10),
+    items: [{ product_id: '', stock_layer_id: '', qty: null as number | null }],
+  }
+}
+const form = ref(emptyForm())
+
+function openCreateModal() {
+  form.value = emptyForm()
+  createError.value = ''
+  showCreateModal.value = true
+}
 function addItemRow() {
-  form.value.items.push({ product_id: '', stock_layer_id: '', qty: 1 })
+  form.value.items.push({ product_id: '', stock_layer_id: '', qty: null })
 }
 function removeItemRow(idx: number) {
   form.value.items.splice(idx, 1)
@@ -65,43 +135,32 @@ function onLayerSelect(idx: number) {
 }
 
 async function createTransfer() {
-  errorMsg.value = ''
+  createError.value = ''
+  creating.value = true
   try {
     await useApi('/stock-transfers', { method: 'POST', body: form.value })
-    form.value = {
-      from_warehouse_id: '',
-      to_warehouse_id: '',
-      transfer_date: new Date().toISOString().slice(0, 10),
-      items: [{ product_id: '', stock_layer_id: '', qty: 1 }],
-    }
-    await loadAll()
+    showCreateModal.value = false
+    page.value = 1
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat transfer'
+    createError.value = err?.data?.data?.message || 'Gagal membuat transfer'
+  } finally {
+    creating.value = false
   }
 }
 
-async function toggleExpand(t: Transfer) {
-  if (expanded.value[t.id]) {
-    expanded.value[t.id] = null
-    return
-  }
-  const detail = await useApi<Transfer>(`/stock-transfers/${t.id}`)
-  expanded.value[t.id] = detail
+// --- detail modal ---
+const showDetailModal = ref(false)
+const detailTransfer = ref<Transfer | null>(null)
+async function openDetail(t: Transfer) {
+  detailTransfer.value = await useApi<Transfer>(`/stock-transfers/${t.id}`)
+  showDetailModal.value = true
 }
 
-function warehouseName(id: string) {
-  return warehouses.value.find((w) => w.id === id)?.name || id
-}
-function productLabel(id: string) {
-  const p = products.value.find((p) => p.id === id)
-  return p ? `${p.sku} - ${p.name}` : id
-}
-function layerLabel(id: string) {
-  const l = layers.value.find((x) => x.id === id)
-  return l ? `${productLabel(l.product_id)} (sisa ${l.qty_remaining}, hpp ${l.hpp}, ${l.receive_date})` : id
-}
-
-onMounted(loadAll)
+onMounted(async () => {
+  await loadMasters()
+  await load()
+})
 </script>
 
 <template>
@@ -109,99 +168,101 @@ onMounted(loadAll)
     <h1>Stock Transfers</h1>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="create-form" @submit.prevent="createTransfer">
-      <div class="row">
-        <label>
-          From Warehouse
-          <select v-model="form.from_warehouse_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </label>
-        <label>
-          To Warehouse
-          <select v-model="form.to_warehouse_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </label>
-        <label>
-          Transfer Date
-          <input v-model="form.transfer_date" type="date" required />
-        </label>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      search-placeholder="Cari No Transfer..."
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat Transfer</BaseButton>
+      </template>
+      <template #cell-no_transfer="{ row }">
+        <button class="link-cell" @click="openDetail(row)">{{ row.no_transfer }}</button>
+      </template>
+      <template #cell-from_warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+      <template #cell-to_warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+      <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Detail</BaseButton>
+      </template>
+    </BaseDataTable>
+
+    <BaseModal v-model="showCreateModal" title="Buat Stock Transfer" size="lg">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect v-model="form.from_warehouse_id" label="From Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSelect v-model="form.to_warehouse_id" label="To Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseDatePicker v-model="form.transfer_date" label="Transfer Date" required />
       </div>
 
-      <table class="item-table">
-        <thead><tr><th>Stock Layer (dari From Warehouse)</th><th>Qty</th><th></th></tr></thead>
+      <table class="line-items-table">
+        <thead><tr><th>Stock Layer (dari From Warehouse)</th><th class="col-narrow">Qty</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
             <td>
-              <select v-model="form.items[idx].stock_layer_id" required @change="onLayerSelect(idx)">
-                <option value="">-- pilih layer --</option>
-                <option v-for="l in layersForWarehouse(form.from_warehouse_id)" :key="l.id" :value="l.id">
-                  {{ layerLabel(l.id) }}
-                </option>
-              </select>
+              <BaseSelect
+                v-model="form.items[idx].stock_layer_id"
+                :options="layerOptionsForWarehouse(form.from_warehouse_id)"
+                required
+                @update:model-value="onLayerSelect(idx)"
+              />
             </td>
-            <td><input v-model.number="form.items[idx].qty" type="number" step="any" min="0.0001" required /></td>
-            <td><button type="button" class="link danger" @click="removeItemRow(idx)">Hapus</button></td>
+            <td class="col-narrow"><BaseNumberInput v-model="form.items[idx].qty" required /></td>
+            <td><BaseButton variant="ghost" size="sm" @click="removeItemRow(idx)">Hapus</BaseButton></td>
           </tr>
         </tbody>
       </table>
-      <button type="button" class="secondary" @click="addItemRow">+ Tambah Item</button>
-      <button type="submit">Buat & Eksekusi Transfer</button>
-    </form>
+      <BaseButton variant="secondary" size="sm" @click="addItemRow">+ Tambah Item</BaseButton>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="trf-table">
-      <thead><tr><th>No Transfer</th><th>From</th><th>To</th><th>Transfer Date</th><th>Status</th></tr></thead>
-      <tbody>
-        <template v-for="t in transfers" :key="t.id">
-          <tr>
-            <td><button class="link" @click="toggleExpand(t)">{{ t.no_transfer }}</button></td>
-            <td>{{ warehouseName(t.from_warehouse_id) }}</td>
-            <td>{{ warehouseName(t.to_warehouse_id) }}</td>
-            <td>{{ t.transfer_date }}</td>
-            <td><span class="status" :class="`status-${t.status}`">{{ t.status }}</span></td>
-          </tr>
-          <tr v-if="expanded[t.id]">
-            <td colspan="5">
-              <table class="detail-table">
-                <thead><tr><th>Product</th><th>Stock Layer</th><th>Qty</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in expanded[t.id]?.items" :key="item.id">
-                    <td>{{ productLabel(item.product_id) }}</td>
-                    <td class="mono">{{ item.stock_layer_id.slice(0, 8) }}...</td>
-                    <td>{{ item.qty }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-        <tr v-if="transfers.length === 0"><td colspan="5">Belum ada transfer</td></tr>
-      </tbody>
-    </table>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" @click="createTransfer">Buat &amp; Eksekusi Transfer</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseModal v-model="showDetailModal" title="Detail Stock Transfer" size="lg">
+      <div v-if="detailTransfer" class="detail-body">
+        <div class="detail-meta">
+          <div><strong>No Transfer:</strong> {{ detailTransfer.no_transfer }}</div>
+          <div><strong>From:</strong> {{ warehouseName(detailTransfer.from_warehouse_id) }}</div>
+          <div><strong>To:</strong> {{ warehouseName(detailTransfer.to_warehouse_id) }}</div>
+          <div><strong>Transfer Date:</strong> {{ detailTransfer.transfer_date }}</div>
+          <div><strong>Status:</strong> <BaseBadge :status="detailTransfer.status" /></div>
+        </div>
+        <table class="line-items-table">
+          <thead><tr><th>Product</th><th>Stock Layer</th><th>Qty</th></tr></thead>
+          <tbody>
+            <tr v-for="item in detailTransfer.items" :key="item.id">
+              <td>{{ productLabel(item.product_id) }}</td>
+              <td class="mono">{{ item.stock_layer_id.slice(0, 8) }}...</td>
+              <td>{{ item.qty }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
 <style scoped>
-.create-form { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
-.row { display: flex; gap: 12px; flex-wrap: wrap; }
-.row label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-input, select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-.item-table, .trf-table, .detail-table { width: 100%; border-collapse: collapse; }
-.item-table th, .item-table td, .trf-table th, .trf-table td, .detail-table th, .detail-table td {
-  text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px;
-}
-.trf-table { background: #fff; border-radius: 8px; overflow: hidden; }
-.detail-table { background: #f8fafc; }
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.link-cell { background: none; border: none; color: var(--color-info); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.line-items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.line-items-table th { text-align: left; font-size: 12px; color: var(--color-text-muted); padding: 6px 8px; }
+.line-items-table td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid var(--color-neutral-bg); }
+.col-narrow { width: 150px; }
 .mono { font-family: monospace; }
-button { padding: 8px 14px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; align-self: flex-start; }
-button.secondary { background: #94a3b8; }
-button.link { background: none; color: #2563eb; padding: 2px 6px; }
-button.link.danger { color: #dc2626; }
-.status { padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e2e8f0; }
-.status-completed { background: #dcfce7; color: #16a34a; }
-.error { color: #dc2626; }
+.detail-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; font-size: 13px; }
 </style>

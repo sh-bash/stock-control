@@ -2,11 +2,32 @@ import { eq } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { stockTransfers, stockTransferItems } from '../db/schema'
+import { listPaged, type PagedListOptions } from '../utils/crud'
 
 type Tx = PgTransaction<any, any, any>
 
+const SORT_COLUMNS: Record<string, any> = {
+  no_transfer: stockTransfers.no_transfer,
+  transfer_date: stockTransfers.transfer_date,
+  status: stockTransfers.status,
+}
+
 export function listTransfers() {
   return db.select().from(stockTransfers)
+}
+
+export function listTransfersPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string },
+) {
+  const extraFilters = []
+  if (opts.status) extraFilters.push({ column: stockTransfers.status, value: opts.status })
+  return listPaged(stockTransfers, {
+    ...opts,
+    searchColumns: [stockTransfers.no_transfer],
+    sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || stockTransfers.transfer_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
 }
 
 export function findTransfer(id: string) {

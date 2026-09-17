@@ -2,11 +2,33 @@ import { eq } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 import { stockAdjustments, stockAdjustmentItems } from '../db/schema'
+import { listPaged, type PagedListOptions } from '../utils/crud'
 
 type Tx = PgTransaction<any, any, any>
 
+const SORT_COLUMNS: Record<string, any> = {
+  no_adjustment: stockAdjustments.no_adjustment,
+  adjustment_date: stockAdjustments.adjustment_date,
+  status: stockAdjustments.status,
+}
+
 export function listAdjustments() {
   return db.select().from(stockAdjustments)
+}
+
+export function listAdjustmentsPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+) {
+  const extraFilters = []
+  if (opts.status) extraFilters.push({ column: stockAdjustments.status, value: opts.status })
+  if (opts.warehouseId) extraFilters.push({ column: stockAdjustments.warehouse_id, value: opts.warehouseId })
+  return listPaged(stockAdjustments, {
+    ...opts,
+    searchColumns: [stockAdjustments.no_adjustment],
+    sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || stockAdjustments.adjustment_date,
+    sortDir: opts.sortDir ?? 'desc',
+    extraFilters,
+  })
 }
 
 export function findAdjustment(id: string) {

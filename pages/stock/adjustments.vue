@@ -12,32 +12,54 @@ interface Adjustment {
   items?: AdjustmentItem[]
 }
 
-const adjustments = ref<Adjustment[]>([])
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'waiting_approval', label: 'Waiting Approval' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+]
+
+const rows = ref<Adjustment[]>([])
+const totalRows = ref(0)
 const warehouses = ref<Warehouse[]>([])
 const products = ref<Product[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
-const expanded = ref<Record<string, Adjustment | null>>({})
 
-const form = ref({
-  warehouse_id: '',
-  adjustment_date: new Date().toISOString().slice(0, 10),
-  reason: '',
-  items: [{ product_id: '', qty_diff: 0, hpp: 0 }],
-})
+const page = ref(1)
+const pageSize = 20
+const search = ref('')
+const statusFilter = ref('')
+const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'adjustment_date', direction: 'desc' })
 
-async function loadAll() {
+const columns = [
+  { key: 'no_adjustment', label: 'No Adjustment', sortable: true },
+  { key: 'warehouse_id', label: 'Warehouse' },
+  { key: 'adjustment_date', label: 'Date', sortable: true },
+  { key: 'reason', label: 'Reason' },
+  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+]
+
+async function loadMasters() {
+  const [w, p] = await Promise.all([useApi<Warehouse[]>('/warehouses'), useApi<Product[]>('/products')])
+  warehouses.value = w
+  products.value = p
+}
+
+async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [a, w, p] = await Promise.all([
-      useApi<Adjustment[]>('/stock-adjustments'),
-      useApi<Warehouse[]>('/warehouses'),
-      useApi<Product[]>('/products'),
-    ])
-    adjustments.value = a.sort((x, y) => y.no_adjustment.localeCompare(x.no_adjustment))
-    warehouses.value = w
-    products.value = p
+    const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
+    if (search.value) params.set('search', search.value)
+    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (sort.value.direction) {
+      params.set('sortBy', sort.value.key)
+      params.set('sortDir', sort.value.direction)
+    }
+    const res = await useApiEnvelope<Adjustment[]>(`/stock-adjustments?${params.toString()}`)
+    rows.value = res.data
+    totalRows.value = Number(res.meta?.totalRows ?? res.data.length)
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -45,69 +67,25 @@ async function loadAll() {
   }
 }
 
-function addItemRow() {
-  form.value.items.push({ product_id: '', qty_diff: 0, hpp: 0 })
+function onSearchChange(v: string) {
+  search.value = v
+  page.value = 1
+  load()
 }
-function removeItemRow(idx: number) {
-  form.value.items.splice(idx, 1)
-}
-
-async function createAdjustment() {
-  errorMsg.value = ''
-  try {
-    const items = form.value.items.map((i) => ({
-      product_id: i.product_id,
-      qty_diff: i.qty_diff,
-      hpp: i.qty_diff > 0 ? i.hpp : undefined,
-    }))
-    await useApi('/stock-adjustments', { method: 'POST', body: { ...form.value, items } })
-    form.value = {
-      warehouse_id: '',
-      adjustment_date: new Date().toISOString().slice(0, 10),
-      reason: '',
-      items: [{ product_id: '', qty_diff: 0, hpp: 0 }],
-    }
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal membuat adjustment'
+function onFilterChange({ key, value }: { key: string; value: string }) {
+  if (key === 'status') {
+    statusFilter.value = value
+    page.value = 1
+    load()
   }
 }
-
-async function toggleExpand(a: Adjustment) {
-  if (expanded.value[a.id]) {
-    expanded.value[a.id] = null
-    return
-  }
-  const detail = await useApi<Adjustment>(`/stock-adjustments/${a.id}`)
-  expanded.value[a.id] = detail
+function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
+  sort.value = s
+  load()
 }
-
-async function submitAdjustment(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/stock-adjustments/${id}/submit`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal submit'
-  }
-}
-async function approveAdjustment(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/stock-adjustments/${id}/approve`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal approve'
-  }
-}
-async function rejectAdjustment(id: string) {
-  errorMsg.value = ''
-  try {
-    await useApi(`/stock-adjustments/${id}/reject`, { method: 'POST' })
-    await loadAll()
-  } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal reject'
-  }
+function onPageChange(p: number) {
+  page.value = p
+  load()
 }
 
 function warehouseName(id: string) {
@@ -118,7 +96,96 @@ function productLabel(id: string) {
   return p ? `${p.sku} - ${p.name}` : id
 }
 
-onMounted(loadAll)
+// --- create modal ---
+const showCreateModal = ref(false)
+const creating = ref(false)
+const createError = ref('')
+function emptyForm() {
+  return {
+    warehouse_id: '',
+    adjustment_date: new Date().toISOString().slice(0, 10),
+    reason: '',
+    items: [{ product_id: '', qty_diff: null as number | null, hpp: null as number | null }],
+  }
+}
+const form = ref(emptyForm())
+
+function openCreateModal() {
+  form.value = emptyForm()
+  createError.value = ''
+  showCreateModal.value = true
+}
+function addItemRow() {
+  form.value.items.push({ product_id: '', qty_diff: null, hpp: null })
+}
+function removeItemRow(idx: number) {
+  form.value.items.splice(idx, 1)
+}
+
+async function createAdjustment() {
+  createError.value = ''
+  const items = form.value.items.map((i) => ({
+    product_id: i.product_id,
+    qty_diff: i.qty_diff,
+    hpp: (i.qty_diff ?? 0) > 0 ? i.hpp : undefined,
+  }))
+  creating.value = true
+  try {
+    await useApi('/stock-adjustments', { method: 'POST', body: { ...form.value, items } })
+    showCreateModal.value = false
+    page.value = 1
+    await load()
+  } catch (err: any) {
+    createError.value = err?.data?.data?.message || 'Gagal membuat adjustment'
+  } finally {
+    creating.value = false
+  }
+}
+
+// --- detail modal ---
+const showDetailModal = ref(false)
+const detailAdjustment = ref<Adjustment | null>(null)
+async function openDetail(a: Adjustment) {
+  detailAdjustment.value = await useApi<Adjustment>(`/stock-adjustments/${a.id}`)
+  showDetailModal.value = true
+}
+
+// --- confirm action ---
+const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
+  show: false, title: '', message: '', confirmText: '', variant: 'primary', loading: false, run: null,
+})
+function askAction(a: Adjustment, action: 'submit' | 'approve' | 'reject') {
+  const labels = {
+    submit: { title: 'Submit Adjustment?', message: `${a.no_adjustment} akan dikirim untuk persetujuan.`, confirmText: 'Ya, Submit', variant: 'primary' as const },
+    approve: { title: 'Approve Adjustment?', message: `${a.no_adjustment} akan disetujui dan langsung mengubah stok.`, confirmText: 'Ya, Approve', variant: 'primary' as const },
+    reject: { title: 'Reject Adjustment?', message: `${a.no_adjustment} akan ditolak.`, confirmText: 'Ya, Reject', variant: 'danger' as const },
+  }[action]
+  confirmState.value = {
+    show: true, ...labels, loading: false,
+    run: async () => {
+      await useApi(`/stock-adjustments/${a.id}/${action}`, { method: 'POST' })
+      await load()
+    },
+  }
+}
+async function runConfirmedAction() {
+  if (!confirmState.value.run) return
+  confirmState.value.loading = true
+  try {
+    await confirmState.value.run()
+    confirmState.value.show = false
+  } catch (err: any) {
+    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
+    confirmState.value.show = false
+  } finally {
+    confirmState.value.loading = false
+  }
+}
+
+onMounted(async () => {
+  await loadMasters()
+  await load()
+})
 </script>
 
 <template>
@@ -126,116 +193,113 @@ onMounted(loadAll)
     <h1>Stock Adjustments</h1>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-    <form class="create-form" @submit.prevent="createAdjustment">
-      <div class="row">
-        <label>
-          Warehouse
-          <select v-model="form.warehouse_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </label>
-        <label>
-          Adjustment Date
-          <input v-model="form.adjustment_date" type="date" required />
-        </label>
-        <label>
-          Reason
-          <input v-model="form.reason" type="text" placeholder="mis. stock opname" />
-        </label>
+    <BaseDataTable
+      :columns="columns"
+      :data="rows"
+      :loading="loading"
+      :page="page"
+      :page-size="pageSize"
+      :total-rows="totalRows"
+      search-placeholder="Cari No Adjustment..."
+      @search-change="onSearchChange"
+      @filter-change="onFilterChange"
+      @sort-change="onSortChange"
+      @update:page="onPageChange"
+    >
+      <template #toolbar-actions>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat Adjustment</BaseButton>
+      </template>
+      <template #cell-no_adjustment="{ row }">
+        <button class="link-cell" @click="openDetail(row)">{{ row.no_adjustment }}</button>
+      </template>
+      <template #cell-warehouse_id="{ value }">{{ warehouseName(value) }}</template>
+      <template #cell-reason="{ value }">{{ value || '-' }}</template>
+      <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
+      <template #actions="{ row }">
+        <BaseButton variant="ghost" size="sm" @click="openDetail(row)">Detail</BaseButton>
+        <BaseButton v-if="row.status === 'draft'" variant="secondary" size="sm" @click="askAction(row, 'submit')">Submit</BaseButton>
+        <template v-if="row.status === 'waiting_approval'">
+          <BaseButton size="sm" @click="askAction(row, 'approve')">Approve</BaseButton>
+          <BaseButton variant="danger" size="sm" @click="askAction(row, 'reject')">Reject</BaseButton>
+        </template>
+      </template>
+    </BaseDataTable>
+
+    <BaseModal v-model="showCreateModal" title="Buat Stock Adjustment" size="lg">
+      <p v-if="createError" class="error">{{ createError }}</p>
+      <div class="form-grid">
+        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseDatePicker v-model="form.adjustment_date" label="Adjustment Date" required />
+        <BaseInput v-model="form.reason" label="Reason" placeholder="mis. stock opname" />
       </div>
 
-      <table class="item-table">
-        <thead><tr><th>Product</th><th>Qty Diff (+/-)</th><th>HPP (wajib jika positif)</th><th></th></tr></thead>
+      <table class="line-items-table">
+        <thead><tr><th>Product</th><th class="col-narrow">Qty Diff (+/-)</th><th class="col-narrow">HPP (wajib jika positif)</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td>
-              <select v-model="item.product_id" required>
-                <option value="">-- pilih produk --</option>
-                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} - {{ p.name }}</option>
-              </select>
-            </td>
-            <td><input v-model.number="item.qty_diff" type="number" step="any" required /></td>
-            <td>
-              <input
-                v-if="item.qty_diff > 0"
-                v-model.number="item.hpp"
-                type="number"
-                step="any"
-                min="0"
-                required
-              />
+            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.qty_diff" allow-negative required /></td>
+            <td class="col-narrow">
+              <BaseNumberInput v-if="(item.qty_diff ?? 0) > 0" v-model="item.hpp" required />
               <span v-else class="hint">tidak perlu (FIFO otomatis)</span>
             </td>
-            <td><button type="button" class="link danger" @click="removeItemRow(idx)">Hapus</button></td>
+            <td><BaseButton variant="ghost" size="sm" @click="removeItemRow(idx)">Hapus</BaseButton></td>
           </tr>
         </tbody>
       </table>
-      <button type="button" class="secondary" @click="addItemRow">+ Tambah Item</button>
-      <button type="submit">Buat Adjustment</button>
-    </form>
+      <BaseButton variant="secondary" size="sm" @click="addItemRow">+ Tambah Item</BaseButton>
 
-    <p v-if="loading">Memuat...</p>
-    <table v-else class="adj-table">
-      <thead><tr><th>No Adjustment</th><th>Warehouse</th><th>Date</th><th>Reason</th><th>Status</th><th>Aksi</th></tr></thead>
-      <tbody>
-        <template v-for="a in adjustments" :key="a.id">
-          <tr>
-            <td><button class="link" @click="toggleExpand(a)">{{ a.no_adjustment }}</button></td>
-            <td>{{ warehouseName(a.warehouse_id) }}</td>
-            <td>{{ a.adjustment_date }}</td>
-            <td>{{ a.reason || '-' }}</td>
-            <td><span class="status" :class="`status-${a.status}`">{{ a.status }}</span></td>
-            <td>
-              <button v-if="a.status === 'draft'" class="approve" @click="submitAdjustment(a.id)">Submit</button>
-              <template v-if="a.status === 'waiting_approval'">
-                <button class="approve" @click="approveAdjustment(a.id)">Approve</button>
-                <button class="reject" @click="rejectAdjustment(a.id)">Reject</button>
-              </template>
-            </td>
-          </tr>
-          <tr v-if="expanded[a.id]">
-            <td colspan="6">
-              <table class="detail-table">
-                <thead><tr><th>Product</th><th>Qty Diff</th><th>HPP</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in expanded[a.id]?.items" :key="item.id">
-                    <td>{{ productLabel(item.product_id) }}</td>
-                    <td>{{ item.qty_diff }}</td>
-                    <td>{{ item.hpp ?? '(FIFO)' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </template>
-        <tr v-if="adjustments.length === 0"><td colspan="6">Belum ada adjustment</td></tr>
-      </tbody>
-    </table>
+      <template #footer>
+        <BaseButton variant="secondary" :disabled="creating" @click="showCreateModal = false">Batal</BaseButton>
+        <BaseButton :loading="creating" @click="createAdjustment">Buat Adjustment</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseModal v-model="showDetailModal" title="Detail Stock Adjustment" size="lg">
+      <div v-if="detailAdjustment" class="detail-body">
+        <div class="detail-meta">
+          <div><strong>No Adjustment:</strong> {{ detailAdjustment.no_adjustment }}</div>
+          <div><strong>Warehouse:</strong> {{ warehouseName(detailAdjustment.warehouse_id) }}</div>
+          <div><strong>Date:</strong> {{ detailAdjustment.adjustment_date }}</div>
+          <div><strong>Reason:</strong> {{ detailAdjustment.reason || '-' }}</div>
+          <div><strong>Status:</strong> <BaseBadge :status="detailAdjustment.status" /></div>
+        </div>
+        <table class="line-items-table">
+          <thead><tr><th>Product</th><th>Qty Diff</th><th>HPP</th></tr></thead>
+          <tbody>
+            <tr v-for="item in detailAdjustment.items" :key="item.id">
+              <td>{{ productLabel(item.product_id) }}</td>
+              <td>{{ item.qty_diff }}</td>
+              <td>{{ item.hpp ?? '(FIFO)' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseConfirmDialog
+      v-model="confirmState.show"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :confirm-text="confirmState.confirmText"
+      :variant="confirmState.variant"
+      :loading="confirmState.loading"
+      @confirm="runConfirmedAction"
+    />
   </div>
 </template>
 
 <style scoped>
-.create-form { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
-.row { display: flex; gap: 12px; flex-wrap: wrap; }
-.row label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-input, select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-.hint { font-size: 12px; color: #64748b; }
-.item-table, .adj-table, .detail-table { width: 100%; border-collapse: collapse; }
-.item-table th, .item-table td, .adj-table th, .adj-table td, .detail-table th, .detail-table td {
-  text-align: left; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px;
-}
-.adj-table { background: #fff; border-radius: 8px; overflow: hidden; }
-.detail-table { background: #f8fafc; }
-button { padding: 8px 14px; border: none; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; align-self: flex-start; margin-right: 4px; }
-button.secondary { background: #94a3b8; }
-button.link { background: none; color: #2563eb; padding: 2px 6px; }
-button.link.danger { color: #dc2626; }
-button.approve { background: #16a34a; }
-button.reject { background: #dc2626; }
-.status { padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e2e8f0; }
-.status-approved { background: #dcfce7; color: #16a34a; }
-.status-waiting_approval { background: #fef3c7; color: #b45309; }
-.status-rejected { background: #fee2e2; color: #dc2626; }
-.error { color: #dc2626; }
+.error { color: var(--color-danger); margin-bottom: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.hint { font-size: 12px; color: var(--color-text-muted); }
+.link-cell { background: none; border: none; color: var(--color-info); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+.line-items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.line-items-table th { text-align: left; font-size: 12px; color: var(--color-text-muted); padding: 6px 8px; }
+.line-items-table td { padding: 4px 8px; vertical-align: top; border-bottom: 1px solid var(--color-neutral-bg); }
+.col-narrow { width: 150px; }
+.detail-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 16px; font-size: 13px; }
 </style>
