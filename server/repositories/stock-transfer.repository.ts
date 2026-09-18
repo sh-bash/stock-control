@@ -17,16 +17,24 @@ export function listTransfers() {
 }
 
 export function listTransfersPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    fromWarehouseId?: string
+    toWarehouseId?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: stockTransfers.status, value: opts.status })
+  if (opts.fromWarehouseId) extraFilters.push({ column: stockTransfers.from_warehouse_id, value: opts.fromWarehouseId })
+  if (opts.toWarehouseId) extraFilters.push({ column: stockTransfers.to_warehouse_id, value: opts.toWarehouseId })
   return listPaged(stockTransfers, {
     ...opts,
     searchColumns: [stockTransfers.no_transfer],
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || stockTransfers.transfer_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: stockTransfers.transfer_date,
   })
 }
 

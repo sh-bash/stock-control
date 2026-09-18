@@ -17,13 +17,20 @@ const products = ref<Product[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
 
+function defaultDateFrom() {
+  return new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+function defaultDateTo() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 const filters = ref({
   supplier_id: '',
   customer_id: '',
   warehouse_id: '',
   product_id: '',
-  date_from: '',
-  date_to: '',
+  date_from: defaultDateFrom(),
+  date_to: defaultDateTo(),
 })
 
 const purchaseData = ref<any>(null)
@@ -55,8 +62,12 @@ function buildQuery(keys: string[]) {
 }
 
 async function runReport() {
-  loading.value = true
   errorMsg.value = ''
+  if ((tab.value === 'purchase' || tab.value === 'sale') && (!filters.value.date_from || !filters.value.date_to)) {
+    errorMsg.value = 'Range tanggal wajib diisi sebelum menjalankan report ini'
+    return
+  }
+  loading.value = true
   try {
     if (tab.value === 'purchase') {
       purchaseData.value = await useApi(`/reports/purchase${buildQuery(['supplier_id', 'warehouse_id', 'product_id', 'date_from', 'date_to'])}`)
@@ -176,7 +187,10 @@ function exportMutation() {
   })))
 }
 
-onMounted(loadMasters)
+onMounted(async () => {
+  await loadMasters()
+  await runReport()
+})
 </script>
 
 <template>
@@ -203,8 +217,16 @@ onMounted(loadMasters)
         :required="tab === 'mutation'"
         :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))"
       />
-      <BaseDatePicker v-model="filters.date_from" label="Date From" />
-      <BaseDatePicker v-model="filters.date_to" label="Date To" />
+      <BaseDatePicker
+        v-model="filters.date_from"
+        :label="`Date From ${tab === 'purchase' || tab === 'sale' ? '(wajib)' : ''}`"
+        :required="tab === 'purchase' || tab === 'sale'"
+      />
+      <BaseDatePicker
+        v-model="filters.date_to"
+        :label="`Date To ${tab === 'purchase' || tab === 'sale' ? '(wajib)' : ''}`"
+        :required="tab === 'purchase' || tab === 'sale'"
+      />
       <BaseButton type="submit" :loading="loading">Run Report</BaseButton>
     </form>
 

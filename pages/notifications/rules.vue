@@ -19,12 +19,27 @@ const loading = ref(false)
 
 const targetForm = ref<Record<string, { target_type: 'role' | 'user'; target_id: string }>>({})
 
+const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
+  [{ key: 'type' }, { key: 'scope_type' }],
+  () => loadAll(),
+)
+
+const filterChips = computed(() => {
+  const chips: { key: string; label: string }[] = []
+  if (filters.type) chips.push({ key: 'type', label: `Type: ${filters.type}` })
+  if (filters.scope_type) chips.push({ key: 'scope_type', label: `Scope Type: ${filters.scope_type}` })
+  return chips
+})
+
 async function loadAll() {
   loading.value = true
   errorMsg.value = ''
   try {
+    const params = new URLSearchParams()
+    if (filters.type) params.set('type', filters.type)
+    if (filters.scope_type) params.set('scope_type', filters.scope_type)
     const [r, roleList, userList] = await Promise.all([
-      useApi<Rule[]>('/notifications/rules'),
+      useApi<Rule[]>(`/notifications/rules?${params.toString()}`),
       useApi<Role[]>('/roles'),
       useApi<User[]>('/users'),
     ])
@@ -161,6 +176,21 @@ onMounted(loadAll)
       <BaseButton size="sm" @click="openCreateModal">+ Buat Rule</BaseButton>
     </div>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
+
+    <BaseFilterPanel :chips="filterChips" :active-count="activeCount" inline @remove-chip="removeFilter" @reset="resetAll">
+      <BaseSelect
+        label="Type"
+        :model-value="filters.type"
+        :options="NOTIFICATION_TYPES.map((t) => ({ value: t, label: t }))"
+        @update:model-value="(v) => setFilter('type', v)"
+      />
+      <BaseSelect
+        label="Scope Type"
+        :model-value="filters.scope_type"
+        :options="SCOPE_TYPES.map((s) => ({ value: s, label: s }))"
+        @update:model-value="(v) => setFilter('scope_type', v)"
+      />
+    </BaseFilterPanel>
 
     <p v-if="loading">Memuat...</p>
     <div v-else class="rule-list">

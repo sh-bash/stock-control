@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, lte, or, sql, type AnyColumn } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import type { PgTableWithColumns } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
 
@@ -16,8 +16,9 @@ export interface PagedListOptions {
   statusColumn?: AnyColumn
   statusValue?: string
   // Generic exact-match filters beyond the boolean is_active toggle above —
-  // used by transactional lists (PO status, warehouse_id, etc).
-  extraFilters?: { column: AnyColumn; value: string }[]
+  // used by transactional lists (PO status, warehouse_id, etc). An array
+  // value renders as an IN(...) clause (e.g. multi-select status filters).
+  extraFilters?: { column: AnyColumn; value: string | string[] | boolean | undefined }[]
   // Date-range filter — dateFrom/dateTo arrive as bare "YYYY-MM-DD" strings
   // and are anchored to that day's start/end-of-day so a `timestamp` column
   // (e.g. stock_ledger.transaction_date) doesn't silently drop same-day
@@ -26,6 +27,11 @@ export interface PagedListOptions {
   dateColumn?: AnyColumn
   dateFrom?: string
   dateTo?: string
+  // Escape hatch for a filter that can't be expressed as a plain column
+  // comparison (e.g. Stock Summary's "kondisi stock" bucket, which needs a
+  // correlated subquery against product_stock_settings) — ANDed in with
+  // every other condition.
+  rawCondition?: SQL | undefined
 }
 
 // Opt-in server-side pagination for the Master Data list endpoints (only
@@ -43,7 +49,12 @@ export async function listPaged(table: PgTableWithColumns<any>, options: PagedLi
     conditions.push(eq(options.statusColumn, options.statusValue === 'true'))
   }
   for (const f of options.extraFilters ?? []) {
-    if (f.value) conditions.push(eq(f.column, f.value))
+    if (f.value === undefined || f.value === '') continue
+    if (Array.isArray(f.value)) {
+      if (f.value.length > 0) conditions.push(inArray(f.column, f.value))
+    } else {
+      conditions.push(eq(f.column, f.value))
+    }
   }
   if (options.dateColumn && options.dateFrom) {
     conditions.push(gte(options.dateColumn, new Date(`${options.dateFrom}T00:00:00.000Z`) as any))
@@ -51,6 +62,7 @@ export async function listPaged(table: PgTableWithColumns<any>, options: PagedLi
   if (options.dateColumn && options.dateTo) {
     conditions.push(lte(options.dateColumn, new Date(`${options.dateTo}T23:59:59.999Z`) as any))
   }
+  if (options.rawCondition) conditions.push(options.rawCondition)
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
   let rowsQuery = db.select().from(table as any) as any
@@ -103,6 +115,19 @@ export function parseBasicPagingQuery(event: any) {
     dateFrom: typeof q.date_from === 'string' && q.date_from.length > 0 ? q.date_from : undefined,
     dateTo: typeof q.date_to === 'string' && q.date_to.length > 0 ? q.date_to : undefined,
   }
+}
+
+// Multi-select filters are sent by the frontend as one comma-joined query
+// param (e.g. ?status=draft,approved) rather than repeated keys, since that
+// survives ofetch's query serialization and router.replace({query}) equally
+// well. Splits back into a string[] for `extraFilters`, or undefined if the
+// param wasn't sent at all.
+export function parseCsvQueryParam(event: any, key: string): string[] | undefined {
+  const q = getQuery(event)
+  const raw = q[key]
+  const str = Array.isArray(raw) ? raw.join(',') : raw
+  if (typeof str !== 'string' || str.length === 0) return undefined
+  return str.split(',').filter(Boolean)
 }
 
 export function getById(table: PgTableWithColumns<any>, idColumn: AnyColumn, id: string) {

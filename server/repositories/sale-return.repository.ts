@@ -17,17 +17,24 @@ export function listReturns() {
 }
 
 export function listReturnsPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; condition?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    condition?: string
+    sourceType?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: saleReturns.status, value: opts.status })
   if (opts.condition) extraFilters.push({ column: saleReturns.condition, value: opts.condition })
+  if (opts.sourceType) extraFilters.push({ column: saleReturns.source_type, value: opts.sourceType })
   return listPaged(saleReturns, {
     ...opts,
     searchColumns: [saleReturns.no_return],
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || saleReturns.return_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: saleReturns.return_date,
   })
 }
 

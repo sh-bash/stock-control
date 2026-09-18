@@ -17,7 +17,11 @@ export function listAdjustments() {
 }
 
 export function listAdjustmentsPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    warehouseId?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: stockAdjustments.status, value: opts.status })
@@ -28,6 +32,7 @@ export function listAdjustmentsPaged(
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || stockAdjustments.adjustment_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: stockAdjustments.adjustment_date,
   })
 }
 

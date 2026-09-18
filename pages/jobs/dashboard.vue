@@ -18,6 +18,13 @@ interface Classification {
   calculated_at: string
 }
 
+const CLASSIFICATION_OPTIONS = [
+  { value: 'fast', label: 'Fast' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'slow', label: 'Slow' },
+  { value: 'dead', label: 'Dead' },
+]
+
 const logs = ref<JobLog[]>([])
 const classifications = ref<Classification[]>([])
 const products = ref<Product[]>([])
@@ -26,20 +33,49 @@ const loading = ref(false)
 const errorMsg = ref('')
 const running = ref<string | null>(null)
 
+const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
+  [{ key: 'warehouse_id' }, { key: 'classification', multi: true }],
+  () => loadClassifications(),
+)
+
+const filterChips = computed(() => {
+  const chips: { key: string; label: string }[] = []
+  if (filters.warehouse_id) chips.push({ key: 'warehouse_id', label: `Warehouse: ${warehouseName(filters.warehouse_id)}` })
+  for (const c of filters.classification) {
+    chips.push({ key: `cls:${c}`, label: `Classification: ${CLASSIFICATION_OPTIONS.find((o) => o.value === c)?.label ?? c}` })
+  }
+  return chips
+})
+
+function removeChip(key: string) {
+  if (key.startsWith('cls:')) {
+    const val = key.slice(4)
+    setFilter('classification', filters.classification.filter((c: string) => c !== val))
+  } else {
+    removeFilter(key)
+  }
+}
+
+async function loadClassifications() {
+  const params = new URLSearchParams()
+  if (filters.warehouse_id) params.set('warehouse_id', filters.warehouse_id)
+  if (filters.classification.length) params.set('classification', filters.classification.join(','))
+  classifications.value = await useApi<Classification[]>(`/analytics/movement-classification?${params.toString()}`)
+}
+
 async function loadAll() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const [l, c, p, w] = await Promise.all([
+    const [l, p, w] = await Promise.all([
       useApi<JobLog[]>('/jobs/logs'),
-      useApi<Classification[]>('/analytics/movement-classification'),
       useApi<Product[]>('/products'),
       useApi<Warehouse[]>('/warehouses'),
     ])
     logs.value = l
-    classifications.value = c
     products.value = p
     warehouses.value = w
+    await loadClassifications()
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal memuat data'
   } finally {
@@ -97,6 +133,20 @@ onMounted(loadAll)
     <p v-if="loading">Memuat...</p>
     <template v-else>
       <h2>Movement Classification</h2>
+      <BaseFilterPanel :chips="filterChips" :active-count="activeCount" inline @remove-chip="removeChip" @reset="resetAll">
+        <BaseSelect
+          label="Warehouse"
+          :model-value="filters.warehouse_id"
+          :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
+          @update:model-value="(v) => setFilter('warehouse_id', v)"
+        />
+        <BaseMultiSelect
+          label="Classification"
+          :model-value="filters.classification"
+          :options="CLASSIFICATION_OPTIONS"
+          @update:model-value="(v) => setFilter('classification', v)"
+        />
+      </BaseFilterPanel>
       <table class="data-table">
         <thead><tr><th>Product</th><th>Warehouse</th><th>Classification</th><th>Calculated At</th></tr></thead>
         <tbody>

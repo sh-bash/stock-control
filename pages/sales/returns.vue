@@ -24,6 +24,16 @@ const CONDITION_OPTIONS = [
   { value: 'damaged', label: 'Damaged' },
 ]
 
+const STATUS_OPTIONS = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'processed', label: 'Processed' },
+]
+
+const SOURCE_TYPE_OPTIONS = [
+  { value: 'so', label: 'SO' },
+  { value: 'do', label: 'DO' },
+]
+
 const rows = ref<SaleReturn[]>([])
 const totalRows = ref(0)
 const allSaleOrders = ref<So[]>([])
@@ -37,16 +47,54 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = 20
 const search = ref('')
-const conditionFilter = ref('')
 const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'return_date', direction: 'desc' })
 
 const columns = [
   { key: 'no_return', label: 'No Return', sortable: true },
   { key: 'source_id', label: 'Source' },
   { key: 'return_date', label: 'Return Date', sortable: true },
-  { key: 'condition', label: 'Condition', filterOptions: CONDITION_OPTIONS },
+  { key: 'condition', label: 'Condition' },
   { key: 'status', label: 'Status' },
 ]
+
+const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
+  [
+    { key: 'status', multi: true },
+    { key: 'condition' },
+    { key: 'source_type' },
+    { key: 'date_from' },
+    { key: 'date_to' },
+  ],
+  () => {
+    page.value = 1
+    load()
+  },
+)
+
+const filterChips = computed(() => {
+  const chips: { key: string; label: string }[] = []
+  for (const s of filters.status) {
+    chips.push({ key: `status:${s}`, label: `Status: ${STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s}` })
+  }
+  if (filters.condition) chips.push({ key: 'condition', label: `Kondisi: ${CONDITION_OPTIONS.find((o) => o.value === filters.condition)?.label}` })
+  if (filters.source_type) chips.push({ key: 'source_type', label: `Source: ${filters.source_type.toUpperCase()}` })
+  if (filters.date_from || filters.date_to) {
+    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
+  }
+  return chips
+})
+
+function removeChip(key: string) {
+  if (key.startsWith('status:')) {
+    const val = key.slice('status:'.length)
+    setFilter('status', filters.status.filter((s: string) => s !== val))
+  } else if (key === 'date_range') {
+    setFilter('date_from', '')
+    setFilter('date_to', '')
+  } else {
+    removeFilter(key)
+  }
+}
 
 async function loadMasters() {
   const [so, d, p] = await Promise.all([
@@ -67,7 +115,11 @@ async function load() {
   try {
     const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
     if (search.value) params.set('search', search.value)
-    if (conditionFilter.value) params.set('condition', conditionFilter.value)
+    if (filters.status.length) params.set('status', filters.status.join(','))
+    if (filters.condition) params.set('condition', filters.condition)
+    if (filters.source_type) params.set('source_type', filters.source_type)
+    if (filters.date_from) params.set('date_from', filters.date_from)
+    if (filters.date_to) params.set('date_to', filters.date_to)
     if (sort.value.direction) {
       params.set('sortBy', sort.value.key)
       params.set('sortDir', sort.value.direction)
@@ -86,13 +138,6 @@ function onSearchChange(v: string) {
   search.value = v
   page.value = 1
   load()
-}
-function onFilterChange({ key, value }: { key: string; value: string }) {
-  if (key === 'condition') {
-    conditionFilter.value = value
-    page.value = 1
-    load()
-  }
 }
 function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
   sort.value = s
@@ -178,6 +223,34 @@ onMounted(async () => {
     </p>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
+    <BaseFilterPanel :chips="filterChips" :active-count="activeCount" @remove-chip="removeChip" @reset="resetAll">
+      <BaseMultiSelect
+        label="Status"
+        :model-value="filters.status"
+        :options="STATUS_OPTIONS"
+        @update:model-value="(v) => setFilter('status', v)"
+      />
+      <BaseSelect
+        label="Kondisi"
+        :model-value="filters.condition"
+        :options="CONDITION_OPTIONS"
+        @update:model-value="(v) => setFilter('condition', v)"
+      />
+      <BaseSelect
+        label="Source Type"
+        :model-value="filters.source_type"
+        :options="SOURCE_TYPE_OPTIONS"
+        @update:model-value="(v) => setFilter('source_type', v)"
+      />
+      <BaseDateRangePicker
+        label="Range Tanggal Retur"
+        :from="filters.date_from"
+        :to="filters.date_to"
+        @update:from="(v) => setFilter('date_from', v)"
+        @update:to="(v) => setFilter('date_to', v)"
+      />
+    </BaseFilterPanel>
+
     <BaseDataTable
       :columns="columns"
       :data="rows"
@@ -187,7 +260,6 @@ onMounted(async () => {
       :total-rows="totalRows"
       search-placeholder="Cari No Return..."
       @search-change="onSearchChange"
-      @filter-change="onFilterChange"
       @sort-change="onSortChange"
       @update:page="onPageChange"
     >

@@ -131,6 +131,14 @@ export function listRules() {
   return db.select().from(notificationRules)
 }
 
+export function listRulesFiltered(opts: { type?: string; scopeType?: string }) {
+  const conditions = []
+  if (opts.type) conditions.push(eq(notificationRules.type, opts.type))
+  if (opts.scopeType) conditions.push(eq(notificationRules.scope_type, opts.scopeType))
+  const query = db.select().from(notificationRules)
+  return conditions.length > 0 ? query.where(and(...conditions)) : query
+}
+
 export function createRule(values: { type: string; scope_type: string; scope_id?: string | null; is_active?: boolean }) {
   return db.insert(notificationRules).values(values).returning()
 }

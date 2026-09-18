@@ -26,28 +26,51 @@ const noteMap = ref<Record<string, string>>({})
 
 const page = ref(1)
 const pageSize = 20
-const statusFilter = ref('')
-const docTypeFilter = ref('')
 const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'created_at', direction: 'desc' })
 
 const columns = [
-  {
-    key: 'document_type',
-    label: 'Document Type',
-    filterOptions: DOCUMENT_TYPES.map((dt) => ({ value: dt, label: dt })),
-  },
+  { key: 'document_type', label: 'Document Type' },
   { key: 'document_id', label: 'Document ID' },
   { key: 'current_step', label: 'Current Step' },
-  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+  { key: 'status', label: 'Status' },
 ]
+
+const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
+  [{ key: 'document_type' }, { key: 'status' }, { key: 'date_from' }, { key: 'date_to' }],
+  () => {
+    page.value = 1
+    load()
+  },
+)
+
+const filterChips = computed(() => {
+  const chips: { key: string; label: string }[] = []
+  if (filters.document_type) chips.push({ key: 'document_type', label: `Document Type: ${filters.document_type}` })
+  if (filters.status) chips.push({ key: 'status', label: `Status: ${STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}` })
+  if (filters.date_from || filters.date_to) {
+    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
+  }
+  return chips
+})
+
+function removeChip(key: string) {
+  if (key === 'date_range') {
+    setFilter('date_from', '')
+    setFilter('date_to', '')
+  } else {
+    removeFilter(key)
+  }
+}
 
 async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
     const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
-    if (statusFilter.value) params.set('status', statusFilter.value)
-    if (docTypeFilter.value) params.set('document_type', docTypeFilter.value)
+    if (filters.status) params.set('status', filters.status)
+    if (filters.document_type) params.set('document_type', filters.document_type)
+    if (filters.date_from) params.set('date_from', filters.date_from)
+    if (filters.date_to) params.set('date_to', filters.date_to)
     if (sort.value.direction) {
       params.set('sortBy', sort.value.key)
       params.set('sortDir', sort.value.direction)
@@ -62,12 +85,6 @@ async function load() {
   }
 }
 
-function onFilterChange({ key, value }: { key: string; value: string }) {
-  if (key === 'status') statusFilter.value = value
-  if (key === 'document_type') docTypeFilter.value = value
-  page.value = 1
-  load()
-}
 function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
   sort.value = s
   load()
@@ -133,6 +150,28 @@ onMounted(load)
     <BasePageHeader title="Approval Inbox" :count="totalRows" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
+    <BaseFilterPanel :chips="filterChips" :active-count="activeCount" inline @remove-chip="removeChip" @reset="resetAll">
+      <BaseSelect
+        label="Document Type"
+        :model-value="filters.document_type"
+        :options="DOCUMENT_TYPES.map((dt) => ({ value: dt, label: dt }))"
+        @update:model-value="(v) => setFilter('document_type', v)"
+      />
+      <BaseSelect
+        label="Status"
+        :model-value="filters.status"
+        :options="STATUS_OPTIONS"
+        @update:model-value="(v) => setFilter('status', v)"
+      />
+      <BaseDateRangePicker
+        label="Range Tanggal"
+        :from="filters.date_from"
+        :to="filters.date_to"
+        @update:from="(v) => setFilter('date_from', v)"
+        @update:to="(v) => setFilter('date_to', v)"
+      />
+    </BaseFilterPanel>
+
     <BaseDataTable
       :columns="columns"
       :data="rows"
@@ -141,7 +180,6 @@ onMounted(load)
       :page-size="pageSize"
       :total-rows="totalRows"
       :searchable="false"
-      @filter-change="onFilterChange"
       @sort-change="onSortChange"
       @update:page="onPageChange"
     >

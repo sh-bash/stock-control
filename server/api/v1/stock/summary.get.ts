@@ -9,7 +9,9 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event)
   const productId = typeof q.product_id === 'string' ? q.product_id : undefined
   const warehouseId = typeof q.warehouse_id === 'string' ? q.warehouse_id : undefined
+  const categoryId = typeof q.category_id === 'string' ? q.category_id : undefined
+  const condition = typeof q.condition === 'string' ? (q.condition as 'normal' | 'low' | 'out') : undefined
 
-  const { rows, totalRows } = await listStockSummaryPaged({ ...paging, productId, warehouseId })
+  const { rows, totalRows } = await listStockSummaryPaged({ ...paging, productId, warehouseId, categoryId, condition })
   return success(rows, null, { page: paging.page, pageSize: paging.pageSize, totalRows })
 })

@@ -17,7 +17,11 @@ export function listReturns() {
 }
 
 export function listReturnsPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    warehouseId?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: purchaseReturns.status, value: opts.status })
@@ -28,6 +32,7 @@ export function listReturnsPaged(
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || purchaseReturns.return_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: purchaseReturns.return_date,
   })
 }
 

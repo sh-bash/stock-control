@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, gte, sql } from 'drizzle-orm'
 import type { PgTransaction } from 'drizzle-orm/pg-core'
 import { db } from '../db/client'
-import { stockLayers, stockLedger, stockSummary } from '../db/schema'
+import { products, stockLayers, stockLedger, stockSummary } from '../db/schema'
 import { failure } from '../utils/response'
 import { listPaged, type PagedListOptions } from '../utils/crud'
 
@@ -247,17 +247,49 @@ const SUMMARY_SORT_COLUMNS: Record<string, any> = {
   total_value: stockSummary.total_value,
 }
 
-export function listStockSummaryPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; productId?: string; warehouseId?: string },
+// Resolves each row's effective reorder_point the same way the app's stock
+// alerts do: a product+warehouse-specific override in product_stock_settings
+// wins, falling back to that product's warehouse_id=NULL (global) row. Both
+// subqueries are correlated on the existing (product_id, warehouse_id)
+// columns, so they use the same index stockSummary itself is looked up by.
+const REORDER_POINT_EXPR = sql`COALESCE(
+  (SELECT pss.reorder_point FROM product_stock_settings pss WHERE pss.product_id = ${stockSummary.product_id} AND pss.warehouse_id = ${stockSummary.warehouse_id} LIMIT 1),
+  (SELECT pss.reorder_point FROM product_stock_settings pss WHERE pss.product_id = ${stockSummary.product_id} AND pss.warehouse_id IS NULL LIMIT 1)
+)`
+
+export async function listStockSummaryPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    productId?: string
+    warehouseId?: string
+    categoryId?: string
+    condition?: 'normal' | 'low' | 'out'
+  },
 ) {
   const extraFilters = []
   if (opts.productId) extraFilters.push({ column: stockSummary.product_id, value: opts.productId })
   if (opts.warehouseId) extraFilters.push({ column: stockSummary.warehouse_id, value: opts.warehouseId })
+
+  if (opts.categoryId) {
+    const categoryProducts = await db.select({ id: products.id }).from(products).where(eq(products.category_id, opts.categoryId))
+    extraFilters.push({ column: stockSummary.product_id, value: categoryProducts.map((p) => p.id) })
+  }
+
+  let rawCondition
+  if (opts.condition === 'low') {
+    rawCondition = sql`${stockSummary.qty_on_hand} > 0 AND ${REORDER_POINT_EXPR} IS NOT NULL AND ${stockSummary.qty_on_hand} <= ${REORDER_POINT_EXPR}`
+  } else if (opts.condition === 'out') {
+    rawCondition = sql`${stockSummary.qty_on_hand} = 0`
+  } else if (opts.condition === 'normal') {
+    rawCondition = sql`${stockSummary.qty_on_hand} > 0 AND (${REORDER_POINT_EXPR} IS NULL OR ${stockSummary.qty_on_hand} > ${REORDER_POINT_EXPR})`
+  }
+
   return listPaged(stockSummary, {
     ...opts,
     sortColumn: (opts.sortBy && SUMMARY_SORT_COLUMNS[opts.sortBy]) || stockSummary.total_value,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    rawCondition,
   })
 }
 
@@ -322,13 +354,23 @@ export function listStockLedgerPaged(
     sortBy?: string
     productId?: string
     warehouseId?: string
+    transactionType?: string | string[]
   },
 ) {
   const extraFilters = []
   if (opts.productId) extraFilters.push({ column: stockLedger.product_id, value: opts.productId })
   if (opts.warehouseId) extraFilters.push({ column: stockLedger.warehouse_id, value: opts.warehouseId })
+  if (opts.transactionType) extraFilters.push({ column: stockLedger.transaction_type, value: opts.transactionType })
+
+  // stock_ledger is append-only and can grow unbounded — never let it run
+  // without a date floor. Defaults to the last 30 days when the caller
+  // (BaseDateRangePicker on the Stock Ledger page always sends one, but this
+  // guards direct API callers too) doesn't supply date_from.
+  const dateFrom = opts.dateFrom ?? new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
   return listPaged(stockLedger, {
     ...opts,
+    dateFrom,
     sortColumn: (opts.sortBy && LEDGER_SORT_COLUMNS[opts.sortBy]) || stockLedger.transaction_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,

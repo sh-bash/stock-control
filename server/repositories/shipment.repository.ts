@@ -13,15 +13,23 @@ export function listShipments() {
   return db.select().from(shipments)
 }
 
-export function listShipmentsPaged(opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string }) {
+export function listShipmentsPaged(
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    expeditionId?: string
+  },
+) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: shipments.status, value: opts.status })
+  if (opts.expeditionId) extraFilters.push({ column: shipments.expedition_id, value: opts.expeditionId })
   return listPaged(shipments, {
     ...opts,
     searchColumns: [shipments.no_shipment],
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || shipments.ship_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: shipments.ship_date,
   })
 }
 

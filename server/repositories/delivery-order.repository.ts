@@ -17,7 +17,11 @@ export function listOrders() {
 }
 
 export function listOrdersPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    warehouseId?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: deliveryOrders.status, value: opts.status })
@@ -28,6 +32,7 @@ export function listOrdersPaged(
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || deliveryOrders.delivery_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: deliveryOrders.delivery_date,
   })
 }
 

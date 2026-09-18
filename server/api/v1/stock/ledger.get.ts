@@ -1,6 +1,6 @@
 import { listStockLedger, listStockLedgerPaged } from '../../../repositories/stock.repository'
 import { success } from '../../../utils/response'
-import { parseBasicPagingQuery } from '../../../utils/crud'
+import { parseBasicPagingQuery, parseCsvQueryParam } from '../../../utils/crud'
 
 // stock_ledger is append-only for the lifetime of the business — this is
 // the one list in the app where the UI (pages/stock/overview.vue) always
@@ -11,10 +11,11 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const productId = typeof query.product_id === 'string' ? query.product_id : undefined
   const warehouseId = typeof query.warehouse_id === 'string' ? query.warehouse_id : undefined
+  const transactionType = parseCsvQueryParam(event, 'transaction_type')
 
   const paging = parseBasicPagingQuery(event)
   if (!paging) return success(await listStockLedger(productId, warehouseId))
 
-  const { rows, totalRows } = await listStockLedgerPaged({ ...paging, productId, warehouseId })
+  const { rows, totalRows } = await listStockLedgerPaged({ ...paging, productId, warehouseId, transactionType })
   return success(rows, null, { page: paging.page, pageSize: paging.pageSize, totalRows })
 })

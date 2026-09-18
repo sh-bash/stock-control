@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { productMovementStats, movementClassification, stockLedger, stockSummary } from '../db/schema'
 
@@ -97,6 +97,20 @@ export async function upsertMovementClassification(values: {
 
 export function listMovementClassifications() {
   return db.select().from(movementClassification)
+}
+
+// Filtered variant for the Movement Classification list UI (Warehouse +
+// Classification multi-select). Not paginated — this table is one row per
+// product+warehouse combination the app tracks, already small enough for a
+// wholesale fetch (same as listMovementClassifications), just filtered.
+export function listMovementClassificationsFiltered(opts: { warehouseId?: string; classification?: string[] }) {
+  const conditions = []
+  if (opts.warehouseId) conditions.push(eq(movementClassification.warehouse_id, opts.warehouseId))
+  if (opts.classification?.length) {
+    conditions.push(inArray(movementClassification.classification, opts.classification))
+  }
+  const query = db.select().from(movementClassification)
+  return conditions.length > 0 ? query.where(and(...conditions)) : query
 }
 
 export function listMovementStats() {

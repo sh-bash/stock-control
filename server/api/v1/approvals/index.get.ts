@@ -26,6 +26,7 @@ export default defineEventHandler(async (event) => {
     sortColumn: (paging.sortBy && SORT_COLUMNS[paging.sortBy]) || approvalInstances.created_at,
     sortDir: paging.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: approvalInstances.created_at,
   })
   return success(rows, null, { page: paging.page, pageSize: paging.pageSize, totalRows })
 })

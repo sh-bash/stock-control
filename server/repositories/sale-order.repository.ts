@@ -17,17 +17,28 @@ export function listOrders() {
 }
 
 export function listOrdersPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    warehouseId?: string
+    customerId?: string
+    useDo?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: saleOrders.status, value: opts.status })
   if (opts.warehouseId) extraFilters.push({ column: saleOrders.warehouse_id, value: opts.warehouseId })
+  if (opts.customerId) extraFilters.push({ column: saleOrders.customer_id, value: opts.customerId })
+  if (opts.useDo === 'true' || opts.useDo === 'false') {
+    extraFilters.push({ column: saleOrders.use_do, value: opts.useDo === 'true' })
+  }
   return listPaged(saleOrders, {
     ...opts,
     searchColumns: [saleOrders.no_so],
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || saleOrders.order_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: saleOrders.order_date,
   })
 }
 

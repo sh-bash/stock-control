@@ -17,7 +17,11 @@ export function listReceivings() {
 }
 
 export function listReceivingsPaged(
-  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & { sortBy?: string; status?: string; warehouseId?: string },
+  opts: Omit<PagedListOptions, 'searchColumns' | 'sortColumn'> & {
+    sortBy?: string
+    status?: string | string[]
+    warehouseId?: string
+  },
 ) {
   const extraFilters = []
   if (opts.status) extraFilters.push({ column: receivings.status, value: opts.status })
@@ -28,6 +32,7 @@ export function listReceivingsPaged(
     sortColumn: (opts.sortBy && SORT_COLUMNS[opts.sortBy]) || receivings.receive_date,
     sortDir: opts.sortDir ?? 'desc',
     extraFilters,
+    dateColumn: receivings.receive_date,
   })
 }
 

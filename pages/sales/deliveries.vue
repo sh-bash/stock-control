@@ -29,26 +29,68 @@ const rows = ref<DeliveryOrder[]>([])
 const totalRows = ref(0)
 const eligibleSaleOrders = ref<So[]>([])
 const products = ref<Product[]>([])
+const warehouses = ref<Warehouse[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
 
 const page = ref(1)
 const pageSize = 20
 const search = ref('')
-const statusFilter = ref('')
 const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'delivery_date', direction: 'desc' })
 
 const columns = [
   { key: 'no_do', label: 'No DO', sortable: true },
   { key: 'so_id', label: 'SO' },
   { key: 'delivery_date', label: 'Delivery Date', sortable: true },
-  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+  { key: 'status', label: 'Status' },
 ]
+
+const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
+  [
+    { key: 'status', multi: true },
+    { key: 'warehouse_id' },
+    { key: 'date_from' },
+    { key: 'date_to' },
+  ],
+  () => {
+    page.value = 1
+    load()
+  },
+)
+
+const filterChips = computed(() => {
+  const chips: { key: string; label: string }[] = []
+  for (const s of filters.status) {
+    chips.push({ key: `status:${s}`, label: `Status: ${STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s}` })
+  }
+  if (filters.warehouse_id) chips.push({ key: 'warehouse_id', label: `Warehouse: ${warehouseName(filters.warehouse_id)}` })
+  if (filters.date_from || filters.date_to) {
+    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
+  }
+  return chips
+})
+
+function removeChip(key: string) {
+  if (key.startsWith('status:')) {
+    const val = key.slice('status:'.length)
+    setFilter('status', filters.status.filter((s: string) => s !== val))
+  } else if (key === 'date_range') {
+    setFilter('date_from', '')
+    setFilter('date_to', '')
+  } else {
+    removeFilter(key)
+  }
+}
+
+function warehouseName(id: string) {
+  return warehouses.value.find((w) => w.id === id)?.name || id
+}
 
 async function loadMasters() {
   const s = await useApi<So[]>('/sale-orders')
   eligibleSaleOrders.value = s.filter((so) => so.use_do && ['confirmed', 'partial_delivered'].includes(so.status))
   products.value = await useApi<Product[]>('/products')
+  warehouses.value = await useApi<Warehouse[]>('/warehouses')
 }
 
 async function load() {
@@ -57,7 +99,10 @@ async function load() {
   try {
     const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
     if (search.value) params.set('search', search.value)
-    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (filters.status.length) params.set('status', filters.status.join(','))
+    if (filters.warehouse_id) params.set('warehouse_id', filters.warehouse_id)
+    if (filters.date_from) params.set('date_from', filters.date_from)
+    if (filters.date_to) params.set('date_to', filters.date_to)
     if (sort.value.direction) {
       params.set('sortBy', sort.value.key)
       params.set('sortDir', sort.value.direction)
@@ -76,13 +121,6 @@ function onSearchChange(v: string) {
   search.value = v
   page.value = 1
   load()
-}
-function onFilterChange({ key, value }: { key: string; value: string }) {
-  if (key === 'status') {
-    statusFilter.value = value
-    page.value = 1
-    load()
-  }
 }
 function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
   sort.value = s
@@ -200,6 +238,28 @@ onMounted(async () => {
     <p class="hint">Hanya SO dengan use_do=ya dan status confirmed/partial_delivered yang bisa dibuatkan DO.</p>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
+    <BaseFilterPanel :chips="filterChips" :active-count="activeCount" inline @remove-chip="removeChip" @reset="resetAll">
+      <BaseMultiSelect
+        label="Status"
+        :model-value="filters.status"
+        :options="STATUS_OPTIONS"
+        @update:model-value="(v) => setFilter('status', v)"
+      />
+      <BaseSelect
+        label="Warehouse"
+        :model-value="filters.warehouse_id"
+        :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
+        @update:model-value="(v) => setFilter('warehouse_id', v)"
+      />
+      <BaseDateRangePicker
+        label="Range Tanggal Kirim"
+        :from="filters.date_from"
+        :to="filters.date_to"
+        @update:from="(v) => setFilter('date_from', v)"
+        @update:to="(v) => setFilter('date_to', v)"
+      />
+    </BaseFilterPanel>
+
     <BaseDataTable
       :columns="columns"
       :data="rows"
@@ -209,7 +269,6 @@ onMounted(async () => {
       :total-rows="totalRows"
       search-placeholder="Cari No DO..."
       @search-change="onSearchChange"
-      @filter-change="onFilterChange"
       @sort-change="onSortChange"
       @update:page="onPageChange"
     >

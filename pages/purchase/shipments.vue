@@ -38,7 +38,6 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = 20
 const search = ref('')
-const statusFilter = ref('')
 const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: 'ship_date', direction: 'desc' })
 
 const columns = [
@@ -47,8 +46,45 @@ const columns = [
   { key: 'ship_date', label: 'Ship Date', sortable: true },
   { key: 'total_shipping_cost', label: 'Total Cost', align: 'right' as const },
   { key: 'allocation_method', label: 'Method' },
-  { key: 'status', label: 'Status', filterOptions: STATUS_OPTIONS },
+  { key: 'status', label: 'Status' },
 ]
+
+const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
+  [
+    { key: 'status', multi: true },
+    { key: 'expedition_id' },
+    { key: 'date_from' },
+    { key: 'date_to' },
+  ],
+  () => {
+    page.value = 1
+    load()
+  },
+)
+
+const filterChips = computed(() => {
+  const chips: { key: string; label: string }[] = []
+  for (const s of filters.status) {
+    chips.push({ key: `status:${s}`, label: `Status: ${STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s}` })
+  }
+  if (filters.expedition_id) chips.push({ key: 'expedition_id', label: `Expedition: ${expeditionName(filters.expedition_id)}` })
+  if (filters.date_from || filters.date_to) {
+    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
+  }
+  return chips
+})
+
+function removeChip(key: string) {
+  if (key.startsWith('status:')) {
+    const val = key.slice('status:'.length)
+    setFilter('status', filters.status.filter((s: string) => s !== val))
+  } else if (key === 'date_range') {
+    setFilter('date_from', '')
+    setFilter('date_to', '')
+  } else {
+    removeFilter(key)
+  }
+}
 
 async function loadMasters() {
   const [e, o, p] = await Promise.all([
@@ -67,7 +103,10 @@ async function load() {
   try {
     const params = new URLSearchParams({ page: String(page.value), pageSize: String(pageSize) })
     if (search.value) params.set('search', search.value)
-    if (statusFilter.value) params.set('status', statusFilter.value)
+    if (filters.status.length) params.set('status', filters.status.join(','))
+    if (filters.expedition_id) params.set('expedition_id', filters.expedition_id)
+    if (filters.date_from) params.set('date_from', filters.date_from)
+    if (filters.date_to) params.set('date_to', filters.date_to)
     if (sort.value.direction) {
       params.set('sortBy', sort.value.key)
       params.set('sortDir', sort.value.direction)
@@ -86,13 +125,6 @@ function onSearchChange(v: string) {
   search.value = v
   page.value = 1
   load()
-}
-function onFilterChange({ key, value }: { key: string; value: string }) {
-  if (key === 'status') {
-    statusFilter.value = value
-    page.value = 1
-    load()
-  }
 }
 function onSortChange(s: { key: string; direction: 'asc' | 'desc' | null }) {
   sort.value = s
@@ -197,6 +229,28 @@ onMounted(async () => {
     <BasePageHeader title="Shipments" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
+    <BaseFilterPanel :chips="filterChips" :active-count="activeCount" inline @remove-chip="removeChip" @reset="resetAll">
+      <BaseMultiSelect
+        label="Status"
+        :model-value="filters.status"
+        :options="STATUS_OPTIONS"
+        @update:model-value="(v) => setFilter('status', v)"
+      />
+      <BaseSearchableSelect
+        label="Expedition"
+        :model-value="filters.expedition_id"
+        :options="expeditions.map((e) => ({ value: e.id, label: e.name }))"
+        @update:model-value="(v) => setFilter('expedition_id', v)"
+      />
+      <BaseDateRangePicker
+        label="Range Tanggal Kirim"
+        :from="filters.date_from"
+        :to="filters.date_to"
+        @update:from="(v) => setFilter('date_from', v)"
+        @update:to="(v) => setFilter('date_to', v)"
+      />
+    </BaseFilterPanel>
+
     <BaseDataTable
       :columns="columns"
       :data="rows"
@@ -206,7 +260,6 @@ onMounted(async () => {
       :total-rows="totalRows"
       search-placeholder="Cari No Shipment..."
       @search-change="onSearchChange"
-      @filter-change="onFilterChange"
       @sort-change="onSortChange"
       @update:page="onPageChange"
     >
