@@ -190,9 +190,12 @@ onMounted(load)
 
 <template>
   <div class="crud-page">
-    <div class="header-row">
-      <h1>{{ title }}</h1>
-    </div>
+    <BaseBreadcrumb :items="[{ label: 'Master Data', to: '/master/warehouses' }, { label: title }]" />
+    <BasePageHeader :title="title" :count="totalRows">
+      <template #actions>
+        <BaseButton @click="startCreate">+ Tambah {{ title }}</BaseButton>
+      </template>
+    </BasePageHeader>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
     <BaseDataTable
@@ -203,6 +206,8 @@ onMounted(load)
       :page-size="pageSize"
       :total-rows="totalRows"
       :search-placeholder="`Cari ${title.toLowerCase()}...`"
+      :empty-text="`Belum ada ${title}`"
+      empty-icon="🗂️"
       @search-change="onSearchChange"
       @filter-change="onFilterChange"
       @sort-change="onSortChange"
@@ -210,6 +215,9 @@ onMounted(load)
     >
       <template #toolbar-actions>
         <BaseButton size="sm" @click="startCreate">+ Tambah</BaseButton>
+      </template>
+      <template #empty-action>
+        <BaseButton size="sm" @click="startCreate">+ Tambah {{ title }}</BaseButton>
       </template>
       <template #cell-is_active="{ value }">
         <BaseBadge :status="value ? 'active' : 'inactive'">{{ value ? 'Aktif' : 'Nonaktif' }}</BaseBadge>
@@ -270,9 +278,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.header-row {
-  margin-bottom: 16px;
-}
 .error {
   color: var(--color-danger);
   margin-bottom: 12px;

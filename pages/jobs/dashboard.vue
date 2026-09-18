@@ -73,7 +73,8 @@ onMounted(loadAll)
 
 <template>
   <div>
-    <h1>Scheduled Jobs</h1>
+    <BaseBreadcrumb :items="[{ label: 'Report', to: '/reports' }, { label: 'Scheduled Jobs' }]" />
+    <BasePageHeader title="Scheduled Jobs" />
     <p class="hint">
       Jadwal otomatis: movement-classification & aging-check jalan harian 01:00, stock-reconciliation mingguan
       (Minggu 02:00). Tombol di bawah memicu job secara manual untuk testing.

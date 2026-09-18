@@ -181,7 +181,8 @@ onMounted(loadMasters)
 
 <template>
   <div>
-    <h1>Reports</h1>
+    <BaseBreadcrumb :items="[{ label: 'Report' }, { label: 'Reports' }]" />
+    <BasePageHeader title="Reports" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
     <div class="tabs">

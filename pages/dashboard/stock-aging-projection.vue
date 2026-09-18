@@ -114,7 +114,8 @@ onMounted(loadAll)
 <template>
   <div>
     <div class="header-row">
-      <h1>Stock Aging &amp; Projection</h1>
+      <BaseBreadcrumb :items="[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Stock Aging & Projection' }]" />
+      <BasePageHeader title="Stock Aging & Projection" />
       <BaseSelect
         v-model="selectedWarehouse"
         placeholder="Semua Warehouse"

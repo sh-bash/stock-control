@@ -101,15 +101,16 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div class="header-row">
-      <h1>Dashboard</h1>
-      <BaseSelect
-        v-model="selectedWarehouse"
-        placeholder="Semua Warehouse"
-        :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
-        @update:model-value="loadAll"
-      />
-    </div>
+    <BasePageHeader title="Dashboard" description="Ringkasan stok, approval, dan tren transaksi.">
+      <template #actions>
+        <BaseSelect
+          v-model="selectedWarehouse"
+          placeholder="Semua Warehouse"
+          :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
+          @update:model-value="loadAll"
+        />
+      </template>
+    </BasePageHeader>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
     <p v-if="loading">Memuat...</p>
 
@@ -150,7 +151,8 @@ onMounted(async () => {
           <ul class="approval-list">
             <li v-for="a in pendingApprovals" :key="a.id">
               <BaseBadge tone="neutral">{{ a.document_type.toUpperCase() }}</BaseBadge>
-              step {{ a.current_step }} &middot; {{ new Date(a.created_at).toLocaleDateString() }}
+              <BaseApprovalStepper :current-step="a.current_step" />
+              <span class="approval-date">{{ new Date(a.created_at).toLocaleDateString() }}</span>
             </li>
             <li v-if="pendingApprovals.length === 0" class="empty">Tidak ada approval pending untukmu</li>
           </ul>
@@ -193,7 +195,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 /* min(400px, 100%) / min(280px, 100%) instead of a bare px minimum — a
    plain `minmax(400px, 1fr)` forces a 400px-wide track even in a
    narrower viewport (phone width ~375-400px), causing the grid to
@@ -209,6 +210,8 @@ onMounted(async () => {
 .mini-table { width: 100%; margin-top: 12px; font-size: 13px; }
 .mini-table td { padding: 4px 0; border-bottom: 1px solid var(--color-bg); }
 .approval-list { list-style: none; padding: 0; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+.approval-list li { display: flex; align-items: center; gap: 8px; }
+.approval-date { color: var(--color-text-muted); font-size: 12px; }
 .empty { color: var(--color-text-muted); }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--color-bg); font-size: 13px; }

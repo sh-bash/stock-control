@@ -210,11 +210,16 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1>Sale Orders</h1>
-    <p class="hint">
-      use_do=tidak: stock langsung berkurang saat confirm. use_do=ya: hanya reserved saat confirm,
-      buat Delivery Order untuk mengeluarkan fisik.
-    </p>
+    <BaseBreadcrumb :items="[{ label: 'Sale', to: '/sales/orders' }, { label: 'Sale Order' }]" />
+    <BasePageHeader
+      title="Sale Order"
+      :count="totalRows"
+      description="use_do=tidak: stock langsung berkurang saat confirm. use_do=ya: hanya reserved saat confirm, buat Delivery Order untuk mengeluarkan fisik."
+    >
+      <template #actions>
+        <BaseButton @click="openCreateModal">+ Buat SO Baru</BaseButton>
+      </template>
+    </BasePageHeader>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
     <BaseDataTable
@@ -225,6 +230,8 @@ onMounted(async () => {
       :page-size="pageSize"
       :total-rows="totalRows"
       search-placeholder="Cari No SO..."
+      empty-text="Belum ada Sale Order"
+      empty-icon="🧾"
       @search-change="onSearchChange"
       @filter-change="onFilterChange"
       @sort-change="onSortChange"
@@ -232,6 +239,9 @@ onMounted(async () => {
     >
       <template #toolbar-actions>
         <BaseButton size="sm" @click="openCreateModal">+ Buat SO</BaseButton>
+      </template>
+      <template #empty-action>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat SO Baru</BaseButton>
       </template>
       <template #cell-no_so="{ row }">
         <button class="link-cell" @click="openDetail(row)">{{ row.no_so }}</button>
@@ -319,7 +329,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.hint { font-size: 13px; color: var(--color-text-muted); margin-bottom: 12px; }
 .error { color: var(--color-danger); margin-bottom: 12px; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; align-items: end; }
 .checkbox-field { display: flex; align-items: center; gap: 8px; font-size: 14px; }

@@ -232,7 +232,8 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1>Stock Overview</h1>
+    <BaseBreadcrumb :items="[{ label: 'Stock', to: '/stock/overview' }, { label: 'Stock Overview' }]" />
+    <BasePageHeader title="Stock Overview" :count="summaryTotal" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
     <p v-if="rebuildMsg" class="success">{{ rebuildMsg }}</p>
 

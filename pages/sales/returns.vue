@@ -170,7 +170,8 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1>Sale Returns</h1>
+    <BaseBreadcrumb :items="[{ label: 'Sale', to: '/sales/orders' }, { label: 'Sale Returns' }]" />
+    <BasePageHeader title="Sale Returns" />
     <p class="hint">
       Kondisi "good": restock dengan HPP transaksi keluar asal (bukan average sekarang). Kondisi "damaged":
       dicatat terpisah, tidak menambah stock_layers/stock_summary.

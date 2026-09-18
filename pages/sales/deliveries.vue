@@ -195,7 +195,8 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1>Delivery Orders</h1>
+    <BaseBreadcrumb :items="[{ label: 'Sale', to: '/sales/orders' }, { label: 'Delivery Orders' }]" />
+    <BasePageHeader title="Delivery Orders" />
     <p class="hint">Hanya SO dengan use_do=ya dan status confirmed/partial_delivered yang bisa dibuatkan DO.</p>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue: string | null
     label?: string
@@ -21,9 +21,24 @@ withDefaults(
   },
 )
 
-defineEmits<{ 'update:modelValue': [string] }>()
+const emit = defineEmits<{ 'update:modelValue': [string]; blur: [] }>()
 
 const uid = useId()
+const shake = ref(false)
+
+watch(
+  () => props.error,
+  (val, prev) => {
+    if (val && !prev) {
+      shake.value = true
+      setTimeout(() => (shake.value = false), 350)
+    }
+  },
+)
+
+function onBlur() {
+  emit('blur')
+}
 </script>
 
 <template>
@@ -35,13 +50,14 @@ const uid = useId()
     <input
       :id="uid"
       class="base-field-control"
-      :class="{ 'has-error': error }"
+      :class="{ 'has-error': error, 'is-shaking': shake }"
       :type="type"
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
       :required="required"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      @blur="onBlur"
     />
     <span v-if="error" class="base-field-error">{{ error }}</span>
     <span v-else-if="helperText" class="base-field-helper">{{ helperText }}</span>

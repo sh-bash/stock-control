@@ -101,6 +101,19 @@ watch(
   width: calc(100vw - 48px);
   height: calc(100vh - 48px);
 }
+
+@media (max-width: 640px) {
+  .base-modal-backdrop {
+    padding: 0;
+  }
+  .base-modal-panel {
+    max-width: none !important;
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
 .base-modal-header {
   display: flex;
   align-items: center;

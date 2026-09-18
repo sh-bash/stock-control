@@ -102,7 +102,8 @@ onMounted(loadAll)
 
 <template>
   <div>
-    <h1>Product Stock Settings</h1>
+    <BaseBreadcrumb :items="[{ label: 'Settings', to: '/settings/global-stock' }, { label: 'Product Stock Settings' }]" />
+    <BasePageHeader title="Product Stock Settings" />
     <p class="hint">
       Override per product dan/atau per warehouse untuk min_stock, reorder_point, reorder_qty, serta threshold
       movement/aging. Field yang dikosongkan (-) akan memakai nilai dari Global Stock Settings sebagai fallback.

@@ -152,7 +152,8 @@ onMounted(loadAll)
 <template>
   <div class="workflow-page">
     <div class="header-row">
-      <h1>Approval Workflows</h1>
+      <BaseBreadcrumb :items="[{ label: 'Approval', to: '/approval/inbox' }, { label: 'Approval Workflows' }]" />
+      <BasePageHeader title="Approval Workflows" />
       <BaseButton size="sm" @click="openCreateModal">+ Buat Workflow</BaseButton>
     </div>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>

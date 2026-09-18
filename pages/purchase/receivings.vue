@@ -215,7 +215,8 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1>Receivings</h1>
+    <BaseBreadcrumb :items="[{ label: 'Purchase', to: '/purchase/orders' }, { label: 'Receivings' }]" />
+    <BasePageHeader title="Receivings" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
     <BaseDataTable

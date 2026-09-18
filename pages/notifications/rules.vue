@@ -156,7 +156,8 @@ onMounted(loadAll)
 <template>
   <div class="rules-page">
     <div class="header-row">
-      <h1>Notification Rules</h1>
+      <BaseBreadcrumb :items="[{ label: 'Approval & Settings' }, { label: 'Notification Rules' }]" />
+      <BasePageHeader title="Notification Rules" />
       <BaseButton size="sm" @click="openCreateModal">+ Buat Rule</BaseButton>
     </div>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>

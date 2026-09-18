@@ -220,9 +220,12 @@ onMounted(async () => {
 
 <template>
   <div>
-    <div class="header-row">
-      <h1>Purchase Orders</h1>
-    </div>
+    <BaseBreadcrumb :items="[{ label: 'Purchase', to: '/purchase/orders' }, { label: 'Purchase Order' }]" />
+    <BasePageHeader title="Purchase Order" :count="totalRows">
+      <template #actions>
+        <BaseButton @click="openCreateModal">+ Buat PO Baru</BaseButton>
+      </template>
+    </BasePageHeader>
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
     <BaseDataTable
@@ -233,6 +236,8 @@ onMounted(async () => {
       :page-size="pageSize"
       :total-rows="totalRows"
       search-placeholder="Cari No PO..."
+      empty-text="Belum ada Purchase Order"
+      empty-icon="🧾"
       @search-change="onSearchChange"
       @filter-change="onFilterChange"
       @sort-change="onSortChange"
@@ -240,6 +245,9 @@ onMounted(async () => {
     >
       <template #toolbar-actions>
         <BaseButton size="sm" @click="openCreateModal">+ Buat PO</BaseButton>
+      </template>
+      <template #empty-action>
+        <BaseButton size="sm" @click="openCreateModal">+ Buat PO Baru</BaseButton>
       </template>
       <template #cell-no_po="{ row }">
         <button class="link-cell" @click="openDetail(row)">{{ row.no_po }}</button>

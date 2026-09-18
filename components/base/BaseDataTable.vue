@@ -27,6 +27,7 @@ const props = withDefaults(
     searchPlaceholder?: string
     searchDebounceMs?: number
     emptyText?: string
+    emptyIcon?: string
   }>(),
   {
     loading: false,
@@ -38,6 +39,7 @@ const props = withDefaults(
     searchPlaceholder: 'Cari...',
     searchDebounceMs: 400,
     emptyText: 'Tidak ada data',
+    emptyIcon: '📭',
   },
 )
 
@@ -140,7 +142,13 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
           <tr v-else class="empty-row">
             <td :colspan="columns.length + ($slots.actions ? 1 : 0)">
               <slot name="empty">
-                <div class="empty-state">{{ emptyText }}</div>
+                <div class="empty-state">
+                  <div class="empty-icon">{{ emptyIcon }}</div>
+                  <div class="empty-text">{{ emptyText }}</div>
+                  <div v-if="$slots['empty-action']" class="empty-action">
+                    <slot name="empty-action" />
+                  </div>
+                </div>
               </slot>
             </td>
           </tr>
@@ -166,6 +174,10 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
   flex-wrap: wrap;
   padding: 14px 16px;
   border-bottom: 1px solid var(--color-neutral-bg);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-surface);
 }
 .table-search {
   padding: 8px 12px;
@@ -200,10 +212,20 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-neutral-bg);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  z-index: 2;
 }
 .base-table th.sortable {
   cursor: pointer;
   user-select: none;
+}
+.base-table tbody tr {
+  transition: background-color 150ms ease-in-out;
+}
+.base-table tbody tr:hover {
+  background: var(--color-bg);
 }
 .th-content {
   display: inline-flex;
@@ -216,7 +238,7 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
 }
 .sort-arrow.active {
   opacity: 1;
-  color: var(--color-info);
+  color: var(--color-primary);
 }
 .base-table td {
   padding: 10px 12px;
@@ -241,10 +263,24 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
   border-bottom: none;
 }
 .empty-state {
-  padding: 40px 0;
+  padding: 48px 16px;
   text-align: center;
   color: var(--color-text-muted);
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.empty-icon {
+  font-size: 32px;
+  opacity: 0.7;
+}
+.empty-text {
+  font-size: 14px;
+}
+.empty-action {
+  margin-top: 4px;
 }
 .skeleton-bar {
   display: block;

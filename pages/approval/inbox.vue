@@ -129,7 +129,8 @@ onMounted(load)
 
 <template>
   <div class="inbox-page">
-    <h1>Approval Inbox</h1>
+    <BaseBreadcrumb :items="[{ label: 'Approval', to: '/approval/inbox' }, { label: 'Approval Inbox' }]" />
+    <BasePageHeader title="Approval Inbox" :count="totalRows" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
     <BaseDataTable
@@ -151,6 +152,9 @@ onMounted(load)
         </div>
       </template>
       <template #cell-document_id="{ value }"><span class="mono">{{ value.slice(0, 8) }}...</span></template>
+      <template #cell-current_step="{ row }">
+        <BaseApprovalStepper :current-step="row.current_step" :rejected="row.status === 'rejected'" />
+      </template>
       <template #cell-status="{ value }"><BaseBadge :status="value" /></template>
       <template #actions="{ row }">
         <template v-if="row.status === 'pending'">

@@ -46,7 +46,8 @@ onMounted(load)
 
 <template>
   <div class="settings-page">
-    <h1>Global Stock Settings</h1>
+    <BaseBreadcrumb :items="[{ label: 'Settings', to: '/settings/global-stock' }, { label: 'Global Stock Settings' }]" />
+    <BasePageHeader title="Global Stock Settings" />
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
     <p v-if="savedMsg" class="success">{{ savedMsg }}</p>
     <form v-if="!loading" class="settings-form" @submit.prevent="save">

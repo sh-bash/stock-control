@@ -41,11 +41,11 @@ defineEmits<{ click: [MouseEvent] }>()
   justify-content: center;
   gap: 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: inherit;
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  transition: all 150ms ease-in-out;
   white-space: nowrap;
 }
 .base-btn.block {
@@ -68,8 +68,12 @@ defineEmits<{ click: [MouseEvent] }>()
 
 /* variants */
 .variant-primary {
-  background: var(--color-info);
+  background: var(--color-primary);
   color: #fff;
+}
+.variant-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  filter: none;
 }
 .variant-secondary {
   background: var(--color-neutral-bg);
@@ -81,11 +85,12 @@ defineEmits<{ click: [MouseEvent] }>()
 }
 .variant-ghost {
   background: transparent;
-  color: var(--color-info);
+  color: var(--color-primary);
   border-color: transparent;
 }
 .variant-ghost:hover:not(:disabled) {
-  background: rgba(37, 99, 235, 0.08);
+  background: var(--color-primary-bg);
+  filter: none;
 }
 
 .base-btn:disabled {
@@ -104,8 +109,8 @@ defineEmits<{ click: [MouseEvent] }>()
 }
 .variant-secondary .spinner,
 .variant-ghost .spinner {
-  border: 2px solid rgba(37, 99, 235, 0.3);
-  border-top-color: var(--color-info);
+  border: 2px solid rgba(79, 70, 229, 0.3);
+  border-top-color: var(--color-primary);
 }
 .is-loading .btn-label {
   opacity: 0.85;
