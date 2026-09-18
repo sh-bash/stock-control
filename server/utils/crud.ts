@@ -56,11 +56,23 @@ export async function listPaged(table: PgTableWithColumns<any>, options: PagedLi
       conditions.push(eq(f.column, f.value))
     }
   }
+  // The bind value's shape must match the column's drizzle mode: a `date`
+  // column (order_date, ship_date, ...) is PgDateString here (no `{ mode:
+  // 'date' }` override was set) and wants a plain string, while a
+  // `timestamp` column (created_at, stock_ledger.transaction_date) is
+  // PgTimestamp and calls `.toISOString()` on whatever it's given, so it
+  // needs an actual Date instance. Passing the wrong shape either crashes
+  // postgres.js's binder (Date into a text param) or drizzle's own mapper
+  // ("value.toISOString is not a function") — see getSQLType() to tell them
+  // apart, since both are the same `AnyColumn` type at this call site.
+  const dateColumnIsTimestamp = options.dateColumn?.getSQLType().startsWith('timestamp')
   if (options.dateColumn && options.dateFrom) {
-    conditions.push(gte(options.dateColumn, new Date(`${options.dateFrom}T00:00:00.000Z`) as any))
+    const from = dateColumnIsTimestamp ? new Date(`${options.dateFrom}T00:00:00.000Z`) : `${options.dateFrom} 00:00:00.000`
+    conditions.push(gte(options.dateColumn, from as any))
   }
   if (options.dateColumn && options.dateTo) {
-    conditions.push(lte(options.dateColumn, new Date(`${options.dateTo}T23:59:59.999Z`) as any))
+    const to = dateColumnIsTimestamp ? new Date(`${options.dateTo}T23:59:59.999Z`) : `${options.dateTo} 23:59:59.999`
+    conditions.push(lte(options.dateColumn, to as any))
   }
   if (options.rawCondition) conditions.push(options.rawCondition)
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined
