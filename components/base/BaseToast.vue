@@ -6,7 +6,7 @@
 // changes yet).
 withDefaults(
   defineProps<{
-    severity?: 'danger' | 'warning' | 'info'
+    severity?: 'danger' | 'warning' | 'info' | 'success'
     title: string
     message?: string | null
     persistent?: boolean
@@ -47,6 +47,9 @@ defineEmits<{ close: [] }>()
 }
 .severity-info {
   background: var(--color-info);
+}
+.severity-success {
+  background: var(--color-normal);
 }
 .toast-title {
   font-weight: 600;

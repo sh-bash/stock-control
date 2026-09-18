@@ -154,6 +154,10 @@ function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
   return p ? `${p.sku} - ${p.name}` : id
 }
+async function fetchProductOptions(query: string) {
+  const res = await useApiEnvelope<Product[]>('/products', { query: { page: 1, pageSize: 20, search: query } })
+  return res.data.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))
+}
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat('id-ID').format(n)
 }
@@ -197,6 +201,7 @@ async function createSo() {
     showCreateModal.value = false
     page.value = 1
     await load()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Sale Order berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat SO'
   } finally {
@@ -212,35 +217,23 @@ async function openDetail(so: So) {
   showDetailModal.value = true
 }
 
-// --- confirm action ---
-const confirmState = ref<{ show: boolean; title: string; message: string; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', loading: false, run: null,
-})
-function askConfirmSo(so: So) {
-  confirmState.value = {
-    show: true,
-    title: 'Confirm Sale Order?',
-    message: so.use_do
-      ? `${so.no_so} akan di-confirm — stok akan direservasi (belum keluar fisik). Buat Delivery Order untuk mengeluarkan barang.`
-      : `${so.no_so} akan di-confirm — stok akan langsung berkurang (FIFO) dan transaksi selesai.`,
-    loading: false,
-    run: async () => {
-      await useApi(`/sale-orders/${so.id}/confirm`, { method: 'POST' })
-      await load()
-    },
-  }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+// --- confirm action (SweetAlert2 + toast, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askConfirmSo(so: So) {
+  const message = so.use_do
+    ? `${so.no_so} akan di-confirm — stok akan direservasi (belum keluar fisik). Buat Delivery Order untuk mengeluarkan barang.`
+    : `${so.no_so} akan di-confirm — stok akan langsung berkurang (FIFO) dan transaksi selesai.`
+  const confirmed = await swal.confirmAction({ title: 'Confirm Sale Order?', message, confirmText: 'Ya, Confirm' })
+  if (!confirmed) return
+
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/sale-orders/${so.id}/confirm`, { method: 'POST' })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `${so.no_so} berhasil di-confirm.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Aksi gagal', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -277,7 +270,7 @@ onMounted(async () => {
         :options="customers.map((c) => ({ value: c.id, label: c.name }))"
         @update:model-value="(v) => setFilter('customer_id', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Warehouse"
         :model-value="filters.warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -335,8 +328,8 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Sale Order" size="fullscreen">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.customer_id" label="Customer" required :options="customers.map((c) => ({ value: c.id, label: c.name }))" />
-        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSearchableSelect v-model="form.customer_id" label="Customer" required :options="customers.map((c) => ({ value: c.id, label: c.name }))" />
+        <BaseSearchableSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
         <BaseDatePicker v-model="form.order_date" label="Order Date" required />
         <label class="checkbox-field">
           <input v-model="form.use_do" type="checkbox" />
@@ -348,7 +341,14 @@ onMounted(async () => {
         <thead><tr><th>Produk</th><th class="col-narrow">Qty</th><th class="col-narrow">Sell Price</th><th class="col-narrow">Subtotal</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td>
+              <BaseAsyncSelect
+                v-model="item.product_id"
+                :model-label="productLabel(item.product_id)"
+                :fetch-options="fetchProductOptions"
+                required
+              />
+            </td>
             <td class="col-narrow"><BaseNumberInput v-model="item.qty_order" required /></td>
             <td class="col-narrow"><BaseNumberInput v-model="item.sell_price" required /></td>
             <td class="col-narrow subtotal-cell">Rp {{ fmtCurrency(itemSubtotal(item)) }}</td>
@@ -392,15 +392,6 @@ onMounted(async () => {
         <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      confirm-text="Ya, Confirm"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

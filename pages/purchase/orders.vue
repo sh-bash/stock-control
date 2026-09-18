@@ -147,6 +147,18 @@ function productLabel(id: string) {
   return p ? `${p.sku} - ${p.name}` : id
 }
 
+// Server-side product search for BaseAsyncSelect (product master can run
+// into the hundreds of SKUs — this hits the API per keystroke instead of
+// filtering the already-loaded `products` array, per the async-search
+// requirement, even though that array happens to be fully loaded here too
+// for the detail-modal's productLabel() lookups).
+async function fetchProductOptions(query: string) {
+  const res = await useApiEnvelope<{ id: string; sku: string; name: string }[]>('/products', {
+    query: { page: 1, pageSize: 20, search: query },
+  })
+  return res.data.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))
+}
+
 // --- create modal ---
 const showCreateModal = ref(false)
 const creating = ref(false)
@@ -188,6 +200,7 @@ async function createPo() {
     showCreateModal.value = false
     page.value = 1
     await load()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Purchase Order berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat PO'
   } finally {
@@ -203,45 +216,34 @@ async function openDetail(po: Po) {
   showDetailModal.value = true
 }
 
-// --- action confirm dialog (submit/approve/reject share one dialog) ---
-const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false,
-  title: '',
-  message: '',
-  confirmText: '',
-  variant: 'primary',
-  loading: false,
-  run: null,
-})
+// Submit/approve/reject confirmation now goes through SweetAlert2 (see
+// composables/useSwal.ts) instead of the in-app BaseConfirmDialog — per the
+// design system's mapping, document-approval-style confirmations use the
+// blocking SweetAlert2 modal, while success/failure feedback afterwards is
+// a BaseToast so it doesn't require another click to dismiss.
+const swal = useSwal()
+const notif = useNotificationStore()
 
-function askAction(po: Po, action: 'submit' | 'approve' | 'reject') {
-  const labels = {
-    submit: { title: 'Submit PO?', message: `PO ${po.no_po} akan dikirim untuk persetujuan.`, confirmText: 'Ya, Submit', variant: 'primary' as const },
-    approve: { title: 'Approve PO?', message: `PO ${po.no_po} akan disetujui dan lanjut ke tahap pengiriman.`, confirmText: 'Ya, Approve', variant: 'primary' as const },
-    reject: { title: 'Reject PO?', message: `PO ${po.no_po} akan ditolak.`, confirmText: 'Ya, Reject', variant: 'danger' as const },
-  }[action]
-  confirmState.value = {
-    show: true,
-    ...labels,
-    loading: false,
-    run: async () => {
-      await useApi(`/purchase-orders/${po.id}/${action}`, { method: 'POST' })
-      await load()
-    },
+async function askAction(po: Po, action: 'submit' | 'approve' | 'reject') {
+  const messages = {
+    submit: `PO <strong>${po.no_po}</strong> akan dikirim untuk persetujuan.`,
+    approve: `PO <strong>${po.no_po}</strong> akan disetujui dan lanjut ke tahap pengiriman.`,
+    reject: `PO <strong>${po.no_po}</strong> akan ditolak.`,
   }
-}
+  const confirmed =
+    action === 'approve'
+      ? await swal.confirmApprove(messages.approve)
+      : action === 'reject'
+        ? await swal.confirmReject(messages.reject)
+        : await swal.confirmAction({ title: 'Submit PO?', message: messages.submit, confirmText: 'Ya, Submit' })
+  if (!confirmed) return
 
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/purchase-orders/${po.id}/${action}`, { method: 'POST' })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `PO ${po.no_po} berhasil di-${action}.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Aksi gagal', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -274,7 +276,7 @@ onMounted(async () => {
         :options="suppliers.map((s) => ({ value: s.id, label: s.name }))"
         @update:model-value="(v) => setFilter('supplier_id', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Warehouse"
         :model-value="filters.warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -329,8 +331,8 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Purchase Order" size="fullscreen">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.supplier_id" label="Supplier" required :options="suppliers.map((s) => ({ value: s.id, label: s.name }))" />
-        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSearchableSelect v-model="form.supplier_id" label="Supplier" required :options="suppliers.map((s) => ({ value: s.id, label: s.name }))" />
+        <BaseSearchableSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
         <BaseDatePicker v-model="form.order_date" label="Order Date" required />
       </div>
 
@@ -340,7 +342,14 @@ onMounted(async () => {
         </thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td>
+              <BaseAsyncSelect
+                v-model="item.product_id"
+                :model-label="productLabel(item.product_id)"
+                :fetch-options="fetchProductOptions"
+                placeholder="Cari produk (min. 2 huruf)..."
+              />
+            </td>
             <td class="col-narrow"><BaseNumberInput v-model="item.qty_order" required /></td>
             <td class="col-narrow"><BaseNumberInput v-model="item.unit_price" required /></td>
             <td class="col-narrow subtotal-cell">Rp {{ fmtCurrency(itemSubtotal(item)) }}</td>
@@ -385,16 +394,6 @@ onMounted(async () => {
         <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      :confirm-text="confirmState.confirmText"
-      :variant="confirmState.variant"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

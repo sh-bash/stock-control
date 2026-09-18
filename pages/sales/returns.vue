@@ -154,6 +154,10 @@ function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
   return p ? `${p.sku} - ${p.name}` : id
 }
+async function fetchProductOptions(query: string) {
+  const res = await useApiEnvelope<Product[]>('/products', { query: { page: 1, pageSize: 20, search: query } })
+  return res.data.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))
+}
 
 // --- create modal ---
 const showCreateModal = ref(false)
@@ -297,7 +301,14 @@ onMounted(async () => {
         <thead><tr><th>Product</th><th class="col-narrow">Qty Return</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td>
+              <BaseAsyncSelect
+                v-model="item.product_id"
+                :model-label="productLabel(item.product_id)"
+                :fetch-options="fetchProductOptions"
+                required
+              />
+            </td>
             <td class="col-narrow"><BaseNumberInput v-model="item.qty_return" required /></td>
             <td><BaseButton variant="ghost" size="sm" @click="removeItemRow(idx)">Hapus</BaseButton></td>
           </tr>

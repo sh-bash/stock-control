@@ -209,13 +209,13 @@ onMounted(async () => {
         :options="STATUS_OPTIONS"
         @update:model-value="(v) => setFilter('status', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Dari Warehouse"
         :model-value="filters.from_warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
         @update:model-value="(v) => setFilter('from_warehouse_id', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Ke Warehouse"
         :model-value="filters.to_warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -259,8 +259,8 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Stock Transfer" size="lg">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.from_warehouse_id" label="From Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
-        <BaseSelect v-model="form.to_warehouse_id" label="To Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSearchableSelect v-model="form.from_warehouse_id" label="From Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSearchableSelect v-model="form.to_warehouse_id" label="To Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
         <BaseDatePicker v-model="form.transfer_date" label="Transfer Date" required />
       </div>
 
@@ -269,7 +269,7 @@ onMounted(async () => {
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
             <td>
-              <BaseSelect
+              <BaseSearchableSelect
                 v-model="form.items[idx].stock_layer_id"
                 :options="layerOptionsForWarehouse(form.from_warehouse_id)"
                 required

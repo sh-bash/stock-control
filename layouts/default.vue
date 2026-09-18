@@ -91,7 +91,11 @@ function isGroupActive(group: (typeof navGroups)[number]) {
 
 const sidebarOpen = ref(false)
 
-function handleLogout() {
+const swal = useSwal()
+
+async function handleLogout() {
+  const confirmed = await swal.confirmLogout()
+  if (!confirmed) return
   notifStore.disconnect()
   auth.clearSession()
   router.push('/login')

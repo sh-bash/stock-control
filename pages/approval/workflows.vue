@@ -72,6 +72,7 @@ async function createWorkflow() {
     await useApi('/approval-workflows', { method: 'POST', body: form.value })
     showCreateModal.value = false
     await loadAll()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Workflow berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat workflow'
   } finally {
@@ -104,45 +105,30 @@ async function toggleActive(wf: Workflow) {
   }
 }
 
-// --- confirm dialogs (shared for remove-step and remove-workflow) ---
-const confirmState = ref<{ show: boolean; title: string; message: string; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', loading: false, run: null,
-})
-function askRemoveStep(workflowId: string, step: Step) {
-  confirmState.value = {
-    show: true,
-    title: 'Hapus Step?',
-    message: `Step ${step.step_order} (${approverLabel(step.approver_type, step.approver_id)}) akan dihapus.`,
-    loading: false,
-    run: async () => {
-      await useApi(`/approval-workflows/${workflowId}/steps/${step.id}`, { method: 'DELETE' })
-      await loadAll()
-    },
-  }
-}
-function askRemoveWorkflow(wf: Workflow) {
-  confirmState.value = {
-    show: true,
-    title: 'Hapus Workflow?',
-    message: `Workflow "${wf.name}" beserta semua step-nya akan dihapus permanen.`,
-    loading: false,
-    run: async () => {
-      await useApi(`/approval-workflows/${wf.id}`, { method: 'DELETE' })
-      await loadAll()
-    },
-  }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+// --- delete confirms (SweetAlert2, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askRemoveStep(workflowId: string, step: Step) {
+  const confirmed = await swal.confirmDelete(`Step ${step.step_order} (${approverLabel(step.approver_type, step.approver_id)})`)
+  if (!confirmed) return
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/approval-workflows/${workflowId}/steps/${step.id}`, { method: 'DELETE' })
+    await loadAll()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: 'Step berhasil dihapus.' })
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Gagal menghapus', message: err?.data?.data?.message || 'Terjadi kesalahan' })
+  }
+}
+async function askRemoveWorkflow(wf: Workflow) {
+  const confirmed = await swal.confirmDelete(`Workflow "${wf.name}" beserta semua step-nya`)
+  if (!confirmed) return
+  try {
+    await useApi(`/approval-workflows/${wf.id}`, { method: 'DELETE' })
+    await loadAll()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: 'Workflow berhasil dihapus.' })
+  } catch (err: any) {
+    notif.pushToast({ severity: 'danger', title: 'Gagal menghapus', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -187,9 +173,9 @@ onMounted(loadAll)
             v-model="stepFormFor(wf.id).approver_type"
             :options="[{ value: 'role', label: 'Role' }, { value: 'user', label: 'User' }]"
           />
-          <BaseSelect
+          <BaseSearchableSelect
             v-model="stepFormFor(wf.id).approver_id"
-            placeholder="-- pilih approver --"
+            placeholder="Cari role/user..."
             :options="(stepFormFor(wf.id).approver_type === 'role' ? roles : users).map((o) => ({ value: o.id, label: o.name }))"
           />
           <BaseButton size="sm" @click="addStep(wf.id)">Tambah Step</BaseButton>
@@ -212,16 +198,6 @@ onMounted(loadAll)
         <BaseButton :loading="creating" @click="createWorkflow">Buat Workflow</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      confirm-text="Ya, Hapus"
-      variant="danger"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

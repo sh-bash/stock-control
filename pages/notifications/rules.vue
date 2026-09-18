@@ -91,6 +91,7 @@ async function createRule() {
     })
     showCreateModal.value = false
     await loadAll()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Notification Rule berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat rule'
   } finally {
@@ -123,45 +124,30 @@ async function addTarget(ruleId: string) {
   }
 }
 
-// --- confirm dialogs (shared for remove-target and remove-rule) ---
-const confirmState = ref<{ show: boolean; title: string; message: string; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', loading: false, run: null,
-})
-function askRemoveTarget(ruleId: string, target: Target) {
-  confirmState.value = {
-    show: true,
-    title: 'Hapus Target?',
-    message: `${targetLabel(target)} akan dihapus dari rule ini.`,
-    loading: false,
-    run: async () => {
-      await useApi(`/notifications/rules/${ruleId}/targets/${target.id}`, { method: 'DELETE' })
-      await loadAll()
-    },
-  }
-}
-function askRemoveRule(rule: Rule) {
-  confirmState.value = {
-    show: true,
-    title: 'Hapus Rule?',
-    message: `Rule "${rule.type}" (scope: ${rule.scope_type}) beserta semua target-nya akan dihapus permanen.`,
-    loading: false,
-    run: async () => {
-      await useApi(`/notifications/rules/${rule.id}`, { method: 'DELETE' })
-      await loadAll()
-    },
-  }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+// --- delete confirms (SweetAlert2, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askRemoveTarget(ruleId: string, target: Target) {
+  const confirmed = await swal.confirmDelete(targetLabel(target))
+  if (!confirmed) return
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/notifications/rules/${ruleId}/targets/${target.id}`, { method: 'DELETE' })
+    await loadAll()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: 'Target berhasil dihapus.' })
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Gagal menghapus', message: err?.data?.data?.message || 'Terjadi kesalahan' })
+  }
+}
+async function askRemoveRule(rule: Rule) {
+  const confirmed = await swal.confirmDelete(`Rule "${rule.type}" (scope: ${rule.scope_type}) beserta semua target-nya`)
+  if (!confirmed) return
+  try {
+    await useApi(`/notifications/rules/${rule.id}`, { method: 'DELETE' })
+    await loadAll()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: 'Rule berhasil dihapus.' })
+  } catch (err: any) {
+    notif.pushToast({ severity: 'danger', title: 'Gagal menghapus', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -218,9 +204,9 @@ onMounted(loadAll)
 
         <div class="add-target">
           <BaseSelect v-model="targetFormFor(rule.id).target_type" :options="[{ value: 'role', label: 'Role' }, { value: 'user', label: 'User' }]" />
-          <BaseSelect
+          <BaseSearchableSelect
             v-model="targetFormFor(rule.id).target_id"
-            placeholder="-- pilih target --"
+            placeholder="Cari role/user..."
             :options="(targetFormFor(rule.id).target_type === 'role' ? roles : users).map((o) => ({ value: o.id, label: o.name }))"
           />
           <BaseButton size="sm" @click="addTarget(rule.id)">Tambah Target</BaseButton>
@@ -241,16 +227,6 @@ onMounted(loadAll)
         <BaseButton :loading="creating" @click="createRule">Buat Rule</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      confirm-text="Ya, Hapus"
-      variant="danger"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

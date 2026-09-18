@@ -90,6 +90,10 @@ function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
   return p ? `${p.sku} - ${p.name}` : id
 }
+async function fetchProductOptions(query: string) {
+  const res = await useApiEnvelope<Product[]>('/products', { query: { page: 1, pageSize: 20, search: query } })
+  return res.data.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))
+}
 function warehouseName(id: string) {
   return warehouses.value.find((w) => w.id === id)?.name || id
 }
@@ -201,15 +205,15 @@ onMounted(loadMasters)
     </div>
 
     <form class="filter-form" @submit.prevent="runReport">
-      <BaseSelect v-if="tab === 'purchase'" v-model="filters.supplier_id" label="Supplier" placeholder="-- semua --" :options="suppliers.map((s) => ({ value: s.id, label: s.name }))" />
-      <BaseSelect v-if="tab === 'sale'" v-model="filters.customer_id" label="Customer" placeholder="-- semua --" :options="customers.map((c) => ({ value: c.id, label: c.name }))" />
-      <BaseSelect v-model="filters.warehouse_id" label="Warehouse" placeholder="-- semua --" :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
-      <BaseSelect
+      <BaseSearchableSelect v-if="tab === 'purchase'" v-model="filters.supplier_id" label="Supplier" :options="suppliers.map((s) => ({ value: s.id, label: s.name }))" />
+      <BaseSearchableSelect v-if="tab === 'sale'" v-model="filters.customer_id" label="Customer" :options="customers.map((c) => ({ value: c.id, label: c.name }))" />
+      <BaseSearchableSelect v-model="filters.warehouse_id" label="Warehouse" :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+      <BaseAsyncSelect
         v-model="filters.product_id"
+        :model-label="productLabel(filters.product_id)"
         :label="`Product ${tab === 'mutation' ? '(wajib)' : ''}`"
-        placeholder="-- semua --"
-        :required="tab === 'mutation'"
-        :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))"
+        placeholder="Cari produk (min. 2 huruf)..."
+        :fetch-options="fetchProductOptions"
       />
       <BaseDateRangePicker
         :label="`Range Tanggal ${tab === 'purchase' || tab === 'sale' ? '(wajib dipilih)' : ''}`"

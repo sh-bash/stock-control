@@ -16,7 +16,7 @@ export interface AppNotification {
 
 export interface ToastItem {
   id: string
-  severity: 'info' | 'warning' | 'danger'
+  severity: 'info' | 'warning' | 'danger' | 'success'
   title: string
   message: string
   persistent: boolean
@@ -43,7 +43,7 @@ export const useNotificationStore = defineStore('notifications', {
         item.read_at = new Date().toISOString()
       }
     },
-    pushToast(payload: { severity: 'info' | 'warning' | 'danger'; title: string; message: string }) {
+    pushToast(payload: { severity: 'info' | 'warning' | 'danger' | 'success'; title: string; message: string }) {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`
       const persistent = payload.severity === 'danger'
       this.toasts.push({ id, ...payload, persistent })

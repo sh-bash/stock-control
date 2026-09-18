@@ -183,6 +183,7 @@ async function createReturn() {
     showCreateModal.value = false
     page.value = 1
     await load()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Purchase Return berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat purchase return'
   } finally {
@@ -198,35 +199,30 @@ async function openDetail(ret: PurchaseReturn) {
   showDetailModal.value = true
 }
 
-// --- action confirm ---
-const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', confirmText: '', variant: 'primary', loading: false, run: null,
-})
-function askAction(ret: PurchaseReturn, action: 'submit' | 'approve' | 'reject') {
-  const labels = {
-    submit: { title: 'Submit Purchase Return?', message: `${ret.no_return} akan dikirim untuk persetujuan.`, confirmText: 'Ya, Submit', variant: 'primary' as const },
-    approve: { title: 'Approve Purchase Return?', message: `${ret.no_return} akan disetujui — qty layer terkait akan berkurang.`, confirmText: 'Ya, Approve', variant: 'primary' as const },
-    reject: { title: 'Reject Purchase Return?', message: `${ret.no_return} akan ditolak.`, confirmText: 'Ya, Reject', variant: 'danger' as const },
-  }[action]
-  confirmState.value = {
-    show: true, ...labels, loading: false,
-    run: async () => {
-      await useApi(`/purchase-returns/${ret.id}/${action}`, { method: 'POST' })
-      await load()
-    },
+// --- action confirm (SweetAlert2 + toast, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askAction(ret: PurchaseReturn, action: 'submit' | 'approve' | 'reject') {
+  const messages = {
+    submit: `<strong>${ret.no_return}</strong> akan dikirim untuk persetujuan.`,
+    approve: `<strong>${ret.no_return}</strong> akan disetujui — qty layer terkait akan berkurang.`,
+    reject: `<strong>${ret.no_return}</strong> akan ditolak.`,
   }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+  const confirmed =
+    action === 'approve'
+      ? await swal.confirmApprove(messages.approve)
+      : action === 'reject'
+        ? await swal.confirmReject(messages.reject)
+        : await swal.confirmAction({ title: 'Submit Purchase Return?', message: messages.submit, confirmText: 'Ya, Submit' })
+  if (!confirmed) return
+
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/purchase-returns/${ret.id}/${action}`, { method: 'POST' })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `${ret.no_return} berhasil di-${action}.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Aksi gagal', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -249,7 +245,7 @@ onMounted(async () => {
         :options="STATUS_OPTIONS"
         @update:model-value="(v) => setFilter('status', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Warehouse"
         :model-value="filters.warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -298,7 +294,7 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Purchase Return" size="lg">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.receiving_id" label="Receiving (approved)" required :options="approvedReceivings.map((r) => ({ value: r.id, label: r.no_receiving }))" @update:model-value="onReceivingChange" />
+        <BaseSearchableSelect v-model="form.receiving_id" label="Receiving (approved)" required :options="approvedReceivings.map((r) => ({ value: r.id, label: r.no_receiving }))" @update:model-value="onReceivingChange" />
         <BaseDatePicker v-model="form.return_date" label="Return Date" required />
         <BaseInput v-model="form.reason" label="Reason" />
       </div>
@@ -344,16 +340,6 @@ onMounted(async () => {
         <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      :confirm-text="confirmState.confirmText"
-      :variant="confirmState.variant"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

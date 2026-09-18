@@ -134,7 +134,7 @@ onMounted(loadAll)
     <template v-else>
       <h2>Movement Classification</h2>
       <BaseFilterPanel :chips="filterChips" :active-count="activeCount" inline @remove-chip="removeChip" @reset="resetAll">
-        <BaseSelect
+        <BaseSearchableSelect
           label="Warehouse"
           :model-value="filters.warehouse_id"
           :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"

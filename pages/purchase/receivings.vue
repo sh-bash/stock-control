@@ -147,7 +147,11 @@ function shipmentNo(id: string) {
 }
 function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
-  return p ? `${p.sku} - ${p.name}` : '-'
+  return p ? `${p.sku} - ${p.name}` : ''
+}
+async function fetchProductOptions(query: string) {
+  const res = await useApiEnvelope<Product[]>('/products', { query: { page: 1, pageSize: 20, search: query } })
+  return res.data.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))
 }
 
 // --- create modal ---
@@ -190,6 +194,7 @@ async function createReceiving() {
     showCreateModal.value = false
     page.value = 1
     await load()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Receiving berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat receiving'
   } finally {
@@ -205,35 +210,30 @@ async function openDetail(rcv: Receiving) {
   showDetailModal.value = true
 }
 
-// --- action confirm ---
-const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', confirmText: '', variant: 'primary', loading: false, run: null,
-})
-function askAction(rcv: Receiving, action: 'submit' | 'approve' | 'reject') {
-  const labels = {
-    submit: { title: 'Submit Receiving?', message: `Receiving ${rcv.no_receiving} akan dikirim untuk persetujuan.`, confirmText: 'Ya, Submit', variant: 'primary' as const },
-    approve: { title: 'Approve Receiving?', message: `Receiving ${rcv.no_receiving} akan disetujui — stok akan bertambah.`, confirmText: 'Ya, Approve', variant: 'primary' as const },
-    reject: { title: 'Reject Receiving?', message: `Receiving ${rcv.no_receiving} akan ditolak.`, confirmText: 'Ya, Reject', variant: 'danger' as const },
-  }[action]
-  confirmState.value = {
-    show: true, ...labels, loading: false,
-    run: async () => {
-      await useApi(`/receivings/${rcv.id}/${action}`, { method: 'POST' })
-      await load()
-    },
+// --- action confirm (SweetAlert2 + toast, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askAction(rcv: Receiving, action: 'submit' | 'approve' | 'reject') {
+  const messages = {
+    submit: `Receiving <strong>${rcv.no_receiving}</strong> akan dikirim untuk persetujuan.`,
+    approve: `Receiving <strong>${rcv.no_receiving}</strong> akan disetujui — stok akan bertambah.`,
+    reject: `Receiving <strong>${rcv.no_receiving}</strong> akan ditolak.`,
   }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+  const confirmed =
+    action === 'approve'
+      ? await swal.confirmApprove(messages.approve)
+      : action === 'reject'
+        ? await swal.confirmReject(messages.reject)
+        : await swal.confirmAction({ title: 'Submit Receiving?', message: messages.submit, confirmText: 'Ya, Submit' })
+  if (!confirmed) return
+
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/receivings/${rcv.id}/${action}`, { method: 'POST' })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `Receiving ${rcv.no_receiving} berhasil di-${action}.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Aksi gagal', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -256,7 +256,7 @@ onMounted(async () => {
         :options="STATUS_OPTIONS"
         @update:model-value="(v) => setFilter('status', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Warehouse"
         :model-value="filters.warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -305,8 +305,8 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Receiving" size="lg">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.shipment_id" label="Shipment" required :options="shipments.map((s) => ({ value: s.id, label: s.no_shipment }))" @update:model-value="onShipmentChange" />
-        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSearchableSelect v-model="form.shipment_id" label="Shipment" required :options="shipments.map((s) => ({ value: s.id, label: s.no_shipment }))" @update:model-value="onShipmentChange" />
+        <BaseSearchableSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
         <BaseDatePicker v-model="form.receive_date" label="Receive Date" required />
       </div>
 
@@ -315,7 +315,14 @@ onMounted(async () => {
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="item.shipment_item_id">
             <td class="mono">{{ item.shipment_item_id.slice(0, 8) }}...</td>
-            <td><BaseSelect v-model="form.items[idx].product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td>
+              <BaseAsyncSelect
+                v-model="form.items[idx].product_id"
+                :model-label="productLabel(form.items[idx].product_id)"
+                :fetch-options="fetchProductOptions"
+                required
+              />
+            </td>
             <td class="col-narrow"><BaseNumberInput v-model="form.items[idx].qty_received" /></td>
           </tr>
         </tbody>
@@ -355,16 +362,6 @@ onMounted(async () => {
         <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      :confirm-text="confirmState.confirmText"
-      :variant="confirmState.variant"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

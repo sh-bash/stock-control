@@ -125,6 +125,10 @@ function productLabel(id: string) {
   const p = products.value.find((p) => p.id === id)
   return p ? `${p.sku} - ${p.name}` : id
 }
+async function fetchProductOptions(query: string) {
+  const res = await useApiEnvelope<Product[]>('/products', { query: { page: 1, pageSize: 20, search: query } })
+  return res.data.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))
+}
 
 // --- create modal ---
 const showCreateModal = ref(false)
@@ -165,6 +169,7 @@ async function createAdjustment() {
     showCreateModal.value = false
     page.value = 1
     await load()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Stock Adjustment berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat adjustment'
   } finally {
@@ -180,35 +185,36 @@ async function openDetail(a: Adjustment) {
   showDetailModal.value = true
 }
 
-// --- confirm action ---
-const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', confirmText: '', variant: 'primary', loading: false, run: null,
-})
-function askAction(a: Adjustment, action: 'submit' | 'approve' | 'reject') {
-  const labels = {
-    submit: { title: 'Submit Adjustment?', message: `${a.no_adjustment} akan dikirim untuk persetujuan.`, confirmText: 'Ya, Submit', variant: 'primary' as const },
-    approve: { title: 'Approve Adjustment?', message: `${a.no_adjustment} akan disetujui dan langsung mengubah stok.`, confirmText: 'Ya, Approve', variant: 'primary' as const },
-    reject: { title: 'Reject Adjustment?', message: `${a.no_adjustment} akan ditolak.`, confirmText: 'Ya, Reject', variant: 'danger' as const },
-  }[action]
-  confirmState.value = {
-    show: true, ...labels, loading: false,
-    run: async () => {
-      await useApi(`/stock-adjustments/${a.id}/${action}`, { method: 'POST' })
-      await load()
-    },
+// --- confirm action (SweetAlert2 + toast, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askAction(a: Adjustment, action: 'submit' | 'approve' | 'reject') {
+  const messages = {
+    submit: `<strong>${a.no_adjustment}</strong> akan dikirim untuk persetujuan.`,
+    approve: `<strong>${a.no_adjustment}</strong> akan disetujui dan langsung mengubah stok.`,
+    reject: `<strong>${a.no_adjustment}</strong> akan ditolak.`,
   }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+  const confirmed =
+    action === 'approve'
+      ? await swal.confirmApprove(messages.approve)
+      : action === 'reject'
+        ? await swal.confirmReject(messages.reject)
+        : await swal.confirmAction({ title: 'Submit Adjustment?', message: messages.submit, confirmText: 'Ya, Submit' })
+  if (!confirmed) return
+
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/stock-adjustments/${a.id}/${action}`, { method: 'POST' })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `${a.no_adjustment} berhasil di-${action}.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    if (action === 'approve') {
+      // Approving a negative adjustment consumes stock — surface a failure
+      // (e.g. insufficient stock) as a blocking dialog, not a dismissable toast.
+      await swal.criticalError(err?.data?.data?.message || 'Terjadi kesalahan', 'Approve Gagal')
+    } else {
+      notif.pushToast({ severity: 'danger', title: 'Aksi gagal', message: err?.data?.data?.message || 'Terjadi kesalahan' })
+    }
   }
 }
 
@@ -231,7 +237,7 @@ onMounted(async () => {
         :options="STATUS_OPTIONS"
         @update:model-value="(v) => setFilter('status', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Warehouse"
         :model-value="filters.warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -280,7 +286,7 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Stock Adjustment" size="lg">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
+        <BaseSearchableSelect v-model="form.warehouse_id" label="Warehouse" required :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
         <BaseDatePicker v-model="form.adjustment_date" label="Adjustment Date" required />
         <BaseInput v-model="form.reason" label="Reason" placeholder="mis. stock opname" />
       </div>
@@ -289,7 +295,14 @@ onMounted(async () => {
         <thead><tr><th>Product</th><th class="col-narrow">Qty Diff (+/-)</th><th class="col-narrow">HPP (wajib jika positif)</th><th></th></tr></thead>
         <tbody>
           <tr v-for="(item, idx) in form.items" :key="idx">
-            <td><BaseSelect v-model="item.product_id" :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" required /></td>
+            <td>
+              <BaseAsyncSelect
+                v-model="item.product_id"
+                :model-label="productLabel(item.product_id)"
+                :fetch-options="fetchProductOptions"
+                required
+              />
+            </td>
             <td class="col-narrow"><BaseNumberInput v-model="item.qty_diff" allow-negative required /></td>
             <td class="col-narrow">
               <BaseNumberInput v-if="(item.qty_diff ?? 0) > 0" v-model="item.hpp" required />
@@ -331,16 +344,6 @@ onMounted(async () => {
         <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      :confirm-text="confirmState.confirmText"
-      :variant="confirmState.variant"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

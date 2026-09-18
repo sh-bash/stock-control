@@ -111,36 +111,22 @@ async function submitDummy() {
   }
 }
 
-// --- confirm dialog (approve/reject share one) ---
-const confirmState = ref<{ show: boolean; title: string; message: string; confirmText: string; variant: 'primary' | 'danger'; loading: boolean; run: (() => Promise<void>) | null }>({
-  show: false, title: '', message: '', confirmText: '', variant: 'primary', loading: false, run: null,
-})
-function askAction(inst: Instance, action: 'approve' | 'reject') {
+// --- confirm dialog (SweetAlert2 + toast, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askAction(inst: Instance, action: 'approve' | 'reject') {
   const note = noteMap.value[inst.id] || ''
-  confirmState.value = {
-    show: true,
-    title: action === 'approve' ? 'Approve Dokumen?' : 'Reject Dokumen?',
-    message: `${inst.document_type.toUpperCase()} (${inst.document_id.slice(0, 8)}...) akan di-${action}.${note ? ` Catatan: "${note}"` : ''}`,
-    confirmText: action === 'approve' ? 'Ya, Approve' : 'Ya, Reject',
-    variant: action === 'approve' ? 'primary' : 'danger',
-    loading: false,
-    run: async () => {
-      await useApi(`/approvals/${inst.id}/${action}`, { method: 'POST', body: { note } })
-      await load()
-    },
-  }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+  const message = `${inst.document_type.toUpperCase()} (${inst.document_id.slice(0, 8)}...) akan di-${action}.${note ? ` Catatan: "${note}"` : ''}`
+  const confirmed = action === 'approve' ? await swal.confirmApprove(message) : await swal.confirmReject(message)
+  if (!confirmed) return
+
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/approvals/${inst.id}/${action}`, { method: 'POST', body: { note } })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `Dokumen berhasil di-${action}.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    notif.pushToast({ severity: 'danger', title: 'Aksi gagal', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -205,16 +191,6 @@ onMounted(load)
         </template>
       </template>
     </BaseDataTable>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      :title="confirmState.title"
-      :message="confirmState.message"
-      :confirm-text="confirmState.confirmText"
-      :variant="confirmState.variant"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

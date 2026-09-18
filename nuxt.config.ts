@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   modules: ['@pinia/nuxt'],
-  css: ['~/assets/css/main.css', 'driver.js/dist/driver.css'],
+  css: ['~/assets/css/main.css', 'driver.js/dist/driver.css', 'sweetalert2/dist/sweetalert2.min.css'],
   app: {
     head: {
       link: [

@@ -284,10 +284,20 @@ function loadCurrentTab() {
   else loadLedger()
 }
 
-// ============ Rebuild ============
+// ============ Rebuild (SweetAlert2 confirm, see composables/useSwal.ts) ============
+const swal = useSwal()
 const rebuilding = ref(false)
 const rebuildMsg = ref('')
-const showRebuildConfirm = ref(false)
+async function askRebuildSummary() {
+  const confirmed = await swal.confirmAction({
+    title: 'Rebuild Stock Summary?',
+    message: 'Menghitung ulang semua Stock Summary dari data Layers/Ledger. Pakai ini hanya bila ada kecurigaan data tidak sinkron, bukan operasi rutin.',
+    confirmText: 'Ya, Rebuild',
+    variant: 'danger',
+  })
+  if (!confirmed) return
+  await rebuildSummary()
+}
 async function rebuildSummary() {
   rebuilding.value = true
   rebuildMsg.value = ''
@@ -296,11 +306,9 @@ async function rebuildSummary() {
     const result = await useApi<any[]>('/stock/rebuild-summary', { method: 'POST' })
     const changed = result.filter((r: any) => r.before !== r.after).length
     rebuildMsg.value = `Rebuild selesai: ${result.length} kombinasi dicek, ${changed} berubah.`
-    showRebuildConfirm.value = false
     loadCurrentTab()
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal rebuild stock summary'
-    showRebuildConfirm.value = false
   } finally {
     rebuilding.value = false
   }
@@ -332,18 +340,18 @@ onMounted(async () => {
       <button :class="{ active: tab === 'layers' }" @click="tab = 'layers'; loadLayers()">Stock Layers (FIFO)</button>
       <button :class="{ active: tab === 'ledger' }" @click="tab = 'ledger'; loadLedger()">Stock Ledger</button>
       <div class="toolbar-spacer" />
-      <BaseButton variant="secondary" size="sm" @click="showRebuildConfirm = true">Rebuild Stock Summary</BaseButton>
+      <BaseButton variant="secondary" size="sm" :loading="rebuilding" @click="askRebuildSummary">Rebuild Stock Summary</BaseButton>
     </div>
 
     <template v-if="tab === 'summary'">
       <BaseFilterPanel :chips="summaryChips" :active-count="summaryActiveCount" inline @remove-chip="removeSummaryFilter" @reset="resetSummaryFilters">
-        <BaseSelect
+        <BaseSearchableSelect
           label="Warehouse"
           :model-value="summaryFilters.warehouse_id"
           :options="warehouseOptions()"
           @update:model-value="(v) => setSummaryFilter('warehouse_id', v)"
         />
-        <BaseSelect
+        <BaseSearchableSelect
           label="Product Category"
           :model-value="summaryFilters.category_id"
           :options="categories.map((c) => ({ value: c.id, label: c.name }))"
@@ -394,7 +402,7 @@ onMounted(async () => {
 
     <template v-else>
       <BaseFilterPanel :chips="ledgerChips" :active-count="ledgerActiveCount" @remove-chip="removeLedgerChip" @reset="resetLedgerFilters">
-        <BaseSelect
+        <BaseSearchableSelect
           label="Warehouse"
           :model-value="ledgerFilters.warehouse_id"
           :options="warehouseOptions()"
@@ -438,15 +446,6 @@ onMounted(async () => {
       <template #cell-hpp_used="{ value }">{{ value ?? '-' }}</template>
       </BaseDataTable>
     </template>
-
-    <BaseConfirmDialog
-      v-model="showRebuildConfirm"
-      title="Rebuild Stock Summary?"
-      message="Menghitung ulang semua Stock Summary dari data Layers/Ledger. Pakai ini hanya bila ada kecurigaan data tidak sinkron, bukan operasi rutin."
-      confirm-text="Ya, Rebuild"
-      :loading="rebuilding"
-      @confirm="rebuildSummary"
-    />
   </div>
 </template>
 

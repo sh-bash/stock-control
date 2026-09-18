@@ -136,6 +136,9 @@ function validate() {
   return Object.keys(errs).length === 0
 }
 
+const swal = useSwal()
+const notif = useNotificationStore()
+
 async function submit() {
   errorMsg.value = ''
   if (!validate()) return
@@ -145,6 +148,7 @@ async function submit() {
     if (val === '') val = undefined
     payload[f.key] = val
   }
+  const wasEditing = !!editingId.value
   submitting.value = true
   try {
     if (editingId.value) {
@@ -154,6 +158,11 @@ async function submit() {
     }
     showModal.value = false
     await load()
+    notif.pushToast({
+      severity: 'success',
+      title: 'Berhasil',
+      message: `${props.title} berhasil ${wasEditing ? 'diperbarui' : 'disimpan'}.`,
+    })
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal menyimpan data'
   } finally {
@@ -162,26 +171,16 @@ async function submit() {
 }
 
 // --- delete ---
-const showDeleteConfirm = ref(false)
-const deleteTarget = ref<any>(null)
-const deleting = ref(false)
-
-function askDelete(row: any) {
-  deleteTarget.value = row
-  showDeleteConfirm.value = true
-}
-async function confirmDelete() {
-  if (!deleteTarget.value) return
-  deleting.value = true
+async function askDelete(row: any) {
+  const label = row.name || row.code || row.sku || ''
+  const confirmed = await swal.confirmDelete(label)
+  if (!confirmed) return
   try {
-    await useApi(`${props.endpoint}/${deleteTarget.value.id}`, { method: 'DELETE' })
-    showDeleteConfirm.value = false
+    await useApi(`${props.endpoint}/${row.id}`, { method: 'DELETE' })
     await load()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `${props.title} berhasil dihapus.` })
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Gagal menghapus data'
-    showDeleteConfirm.value = false
-  } finally {
-    deleting.value = false
+    notif.pushToast({ severity: 'danger', title: 'Gagal menghapus', message: err?.data?.data?.message || 'Terjadi kesalahan' })
   }
 }
 
@@ -245,13 +244,11 @@ onMounted(load)
             :required="f.required"
             :error="formErrors[f.key]"
           />
-          <BaseSelect
+          <BaseSearchableSelect
             v-else-if="f.type === 'select'"
             v-model="form[f.key]"
             :label="f.label"
             :options="f.options ?? []"
-            :required="f.required"
-            :error="formErrors[f.key]"
           />
           <label v-else-if="f.type === 'checkbox'" class="checkbox-field">
             <input v-model="form[f.key]" type="checkbox" />
@@ -264,16 +261,6 @@ onMounted(load)
         <BaseButton :loading="submitting" @click="submit">{{ editingId ? 'Update' : 'Simpan' }}</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="showDeleteConfirm"
-      title="Hapus Data?"
-      :message="`Hapus '${deleteTarget?.name || deleteTarget?.code || deleteTarget?.sku}'? Tindakan ini tidak bisa dibatalkan.`"
-      confirm-text="Ya, Hapus"
-      variant="danger"
-      :loading="deleting"
-      @confirm="confirmDelete"
-    />
   </div>
 </template>
 

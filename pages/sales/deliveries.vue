@@ -179,6 +179,7 @@ async function createDo() {
     showCreateModal.value = false
     page.value = 1
     await load()
+    useNotificationStore().pushToast({ severity: 'success', title: 'Berhasil', message: 'Delivery Order berhasil dibuat.' })
   } catch (err: any) {
     createError.value = err?.data?.data?.message || 'Gagal membuat DO'
   } finally {
@@ -194,32 +195,22 @@ async function openDetail(d: DeliveryOrder) {
   showDetailModal.value = true
 }
 
-// --- confirm action ---
-const confirmState = ref<{ show: boolean; loading: boolean; run: (() => Promise<void>) | null; message: string }>({
-  show: false, loading: false, run: null, message: '',
-})
-function askApprove(d: DeliveryOrder) {
-  confirmState.value = {
-    show: true,
-    message: `DO ${d.no_do} akan disetujui — ini akan mengonsumsi stok FIFO dan menghitung COGS.`,
-    loading: false,
-    run: async () => {
-      await useApi(`/delivery-orders/${d.id}/approve`, { method: 'POST' })
-      await load()
-    },
-  }
-}
-async function runConfirmedAction() {
-  if (!confirmState.value.run) return
-  confirmState.value.loading = true
+// --- confirm action (SweetAlert2 + toast, see composables/useSwal.ts) ---
+const swal = useSwal()
+const notif = useNotificationStore()
+
+async function askApprove(d: DeliveryOrder) {
+  const confirmed = await swal.confirmApprove(`DO <strong>${d.no_do}</strong> akan disetujui — ini akan mengonsumsi stok FIFO dan menghitung COGS.`)
+  if (!confirmed) return
+
   try {
-    await confirmState.value.run()
-    confirmState.value.show = false
+    await useApi(`/delivery-orders/${d.id}/approve`, { method: 'POST' })
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: `DO ${d.no_do} berhasil disetujui.` })
+    await load()
   } catch (err: any) {
-    errorMsg.value = err?.data?.data?.message || 'Aksi gagal'
-    confirmState.value.show = false
-  } finally {
-    confirmState.value.loading = false
+    // Approving a DO consumes FIFO stock — a failure here (e.g. insufficient
+    // stock) needs explicit acknowledgement, not a toast that can be missed.
+    await swal.criticalError(err?.data?.data?.message || 'Terjadi kesalahan', 'Approve Gagal')
   }
 }
 
@@ -243,7 +234,7 @@ onMounted(async () => {
         :options="STATUS_OPTIONS"
         @update:model-value="(v) => setFilter('status', v)"
       />
-      <BaseSelect
+      <BaseSearchableSelect
         label="Warehouse"
         :model-value="filters.warehouse_id"
         :options="warehouses.map((w) => ({ value: w.id, label: w.name }))"
@@ -287,7 +278,7 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Delivery Order" size="lg">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.so_id" label="Sale Order" required :options="eligibleSaleOrders.map((so) => ({ value: so.id, label: so.no_so }))" @update:model-value="onSoChange" />
+        <BaseSearchableSelect v-model="form.so_id" label="Sale Order" required :options="eligibleSaleOrders.map((so) => ({ value: so.id, label: so.no_so }))" @update:model-value="onSoChange" />
         <BaseDatePicker v-model="form.delivery_date" label="Delivery Date" required />
       </div>
 
@@ -330,15 +321,6 @@ onMounted(async () => {
         <BaseButton variant="secondary" @click="showDetailModal = false">Tutup</BaseButton>
       </template>
     </BaseModal>
-
-    <BaseConfirmDialog
-      v-model="confirmState.show"
-      title="Approve Delivery Order?"
-      :message="confirmState.message"
-      confirm-text="Ya, Approve"
-      :loading="confirmState.loading"
-      @confirm="runConfirmedAction"
-    />
   </div>
 </template>
 

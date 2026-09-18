@@ -10,8 +10,10 @@ const props = withDefaults(
     options: readonly Option[]
     label?: string
     placeholder?: string
+    required?: boolean
+    error?: string | null
   }>(),
-  { label: '', placeholder: 'Cari...' },
+  { label: '', placeholder: 'Cari...', required: false, error: null },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -51,10 +53,14 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
 
 <template>
   <div ref="rootEl" class="base-field">
-    <label v-if="label" class="base-field-label">{{ label }}</label>
+    <label v-if="label" class="base-field-label">
+      {{ label }}
+      <span v-if="required" class="base-field-required">*</span>
+    </label>
     <div class="searchable-select">
       <input
         class="base-field-control"
+        :class="{ 'has-error': error }"
         type="text"
         :value="open ? query : selectedLabel"
         :placeholder="placeholder"
@@ -69,6 +75,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
         <div v-if="filtered.length === 0" class="ss-empty">Tidak ditemukan</div>
       </div>
     </div>
+    <span v-if="error" class="base-field-error">{{ error }}</span>
   </div>
 </template>
 

@@ -278,7 +278,7 @@ onMounted(async () => {
     <BaseModal v-model="showCreateModal" title="Buat Shipment" size="fullscreen">
       <p v-if="createError" class="error">{{ createError }}</p>
       <div class="form-grid">
-        <BaseSelect v-model="form.expedition_id" label="Expedition" required :options="expeditions.map((e) => ({ value: e.id, label: e.name }))" />
+        <BaseSearchableSelect v-model="form.expedition_id" label="Expedition" required :options="expeditions.map((e) => ({ value: e.id, label: e.name }))" />
         <BaseDatePicker v-model="form.ship_date" label="Ship Date" required />
         <BaseNumberInput v-model="form.total_shipping_cost" label="Total Shipping Cost" required />
         <BaseSelect

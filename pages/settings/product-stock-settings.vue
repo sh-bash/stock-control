@@ -55,6 +55,9 @@ async function loadAll() {
   }
 }
 
+const swal = useSwal()
+const notif = useNotificationStore()
+
 async function createSetting() {
   errorMsg.value = ''
   try {
@@ -64,6 +67,7 @@ async function createSetting() {
     })
     form.value = emptyForm()
     await loadAll()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: 'Override berhasil dibuat.' })
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal membuat override'
   }
@@ -79,10 +83,17 @@ async function toggleActive(s: Setting) {
 }
 
 async function removeSetting(id: string) {
-  if (!confirm('Hapus override ini? Product/warehouse ini akan kembali memakai Global Stock Settings.')) return
+  const confirmed = await swal.confirmAction({
+    title: 'Hapus Override?',
+    message: 'Product/warehouse ini akan kembali memakai Global Stock Settings.',
+    confirmText: 'Ya, Hapus',
+    variant: 'danger',
+  })
+  if (!confirmed) return
   try {
     await useApi(`/product-stock-settings/${id}`, { method: 'DELETE' })
     await loadAll()
+    notif.pushToast({ severity: 'success', title: 'Berhasil', message: 'Override berhasil dihapus.' })
   } catch (err: any) {
     errorMsg.value = err?.data?.data?.message || 'Gagal menghapus'
   }
