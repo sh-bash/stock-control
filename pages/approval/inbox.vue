@@ -36,7 +36,12 @@ const columns = [
 ]
 
 const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilters(
-  [{ key: 'document_type' }, { key: 'status' }, { key: 'date_from' }, { key: 'date_to' }],
+  [
+    { key: 'document_type' },
+    { key: 'status' },
+    { key: 'date_from', default: defaultDateFrom() },
+    { key: 'date_to', default: defaultDateTo() },
+  ],
   () => {
     page.value = 1
     load()
@@ -47,16 +52,14 @@ const filterChips = computed(() => {
   const chips: { key: string; label: string }[] = []
   if (filters.document_type) chips.push({ key: 'document_type', label: `Document Type: ${filters.document_type}` })
   if (filters.status) chips.push({ key: 'status', label: `Status: ${STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}` })
-  if (filters.date_from || filters.date_to) {
-    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
-  }
+  chips.push({ key: 'date_range', label: `Created: ${formatDateRangeLabel(filters.date_from, filters.date_to)}` })
   return chips
 })
 
 function removeChip(key: string) {
   if (key === 'date_range') {
-    setFilter('date_from', '')
-    setFilter('date_to', '')
+    setFilter('date_from', defaultDateFrom())
+    setFilter('date_to', defaultDateTo())
   } else {
     removeFilter(key)
   }

@@ -62,8 +62,8 @@ const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilt
     { key: 'status', multi: true },
     { key: 'condition' },
     { key: 'source_type' },
-    { key: 'date_from' },
-    { key: 'date_to' },
+    { key: 'date_from', default: defaultDateFrom() },
+    { key: 'date_to', default: defaultDateTo() },
   ],
   () => {
     page.value = 1
@@ -78,9 +78,7 @@ const filterChips = computed(() => {
   }
   if (filters.condition) chips.push({ key: 'condition', label: `Kondisi: ${CONDITION_OPTIONS.find((o) => o.value === filters.condition)?.label}` })
   if (filters.source_type) chips.push({ key: 'source_type', label: `Source: ${filters.source_type.toUpperCase()}` })
-  if (filters.date_from || filters.date_to) {
-    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
-  }
+  chips.push({ key: 'date_range', label: `Return Date: ${formatDateRangeLabel(filters.date_from, filters.date_to)}` })
   return chips
 })
 
@@ -89,8 +87,8 @@ function removeChip(key: string) {
     const val = key.slice('status:'.length)
     setFilter('status', filters.status.filter((s: string) => s !== val))
   } else if (key === 'date_range') {
-    setFilter('date_from', '')
-    setFilter('date_to', '')
+    setFilter('date_from', defaultDateFrom())
+    setFilter('date_to', defaultDateTo())
   } else {
     removeFilter(key)
   }

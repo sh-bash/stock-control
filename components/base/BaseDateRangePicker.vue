@@ -14,14 +14,17 @@ function fmt(d: Date) {
   return d.toISOString().slice(0, 10)
 }
 
-function applyPreset(preset: 'today' | 7 | 30 | 'month') {
+function applyPreset(preset: 'today' | 7 | 30 | 'month' | 'last-month') {
   const now = new Date()
   let from: Date
-  const to = now
+  let to = now
   if (preset === 'today') {
     from = now
   } else if (preset === 'month') {
     from = new Date(now.getFullYear(), now.getMonth(), 1)
+  } else if (preset === 'last-month') {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    to = new Date(now.getFullYear(), now.getMonth(), 0)
   } else {
     from = new Date(now)
     from.setDate(from.getDate() - (preset - 1))
@@ -39,8 +42,9 @@ function applyPreset(preset: 'today' | 7 | 30 | 'month') {
       <button type="button" @click="applyPreset(7)">7 hari</button>
       <button type="button" @click="applyPreset(30)">30 hari</button>
       <button type="button" @click="applyPreset('month')">Bulan ini</button>
+      <button type="button" @click="applyPreset('last-month')">Bulan lalu</button>
     </div>
-    <div class="date-range-inputs">
+    <div class="date-range-inputs" title="Custom range">
       <input
         type="date"
         class="base-field-control"

@@ -54,8 +54,8 @@ const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilt
     { key: 'status', multi: true },
     { key: 'supplier_id' },
     { key: 'warehouse_id' },
-    { key: 'date_from' },
-    { key: 'date_to' },
+    { key: 'date_from', default: defaultDateFrom() },
+    { key: 'date_to', default: defaultDateTo() },
   ],
   () => {
     page.value = 1
@@ -70,9 +70,7 @@ const filterChips = computed(() => {
   }
   if (filters.supplier_id) chips.push({ key: 'supplier_id', label: `Supplier: ${supplierName(filters.supplier_id)}` })
   if (filters.warehouse_id) chips.push({ key: 'warehouse_id', label: `Warehouse: ${warehouseName(filters.warehouse_id)}` })
-  if (filters.date_from || filters.date_to) {
-    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
-  }
+  chips.push({ key: 'date_range', label: `Order Date: ${formatDateRangeLabel(filters.date_from, filters.date_to)}` })
   return chips
 })
 
@@ -81,8 +79,8 @@ function removeChip(key: string) {
     const val = key.slice('status:'.length)
     setFilter('status', filters.status.filter((s: string) => s !== val))
   } else if (key === 'date_range') {
-    setFilter('date_from', '')
-    setFilter('date_to', '')
+    setFilter('date_from', defaultDateFrom())
+    setFilter('date_to', defaultDateTo())
   } else {
     removeFilter(key)
   }

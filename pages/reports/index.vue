@@ -17,20 +17,17 @@ const products = ref<Product[]>([])
 const errorMsg = ref('')
 const loading = ref(false)
 
-function defaultDateFrom() {
-  return new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
-function defaultDateTo() {
-  return new Date().toISOString().slice(0, 10)
-}
-
+// Report tanggal sengaja TIDAK diberi default — Report Purchase & Sale
+// mewajibkan user memilih range sendiri sebelum data pertama kali dimuat
+// (lihat runReport's guard di bawah), beda dari list transaksi lain yang
+// sudah otomatis dibatasi 30 hari terakhir.
 const filters = ref({
   supplier_id: '',
   customer_id: '',
   warehouse_id: '',
   product_id: '',
-  date_from: defaultDateFrom(),
-  date_to: defaultDateTo(),
+  date_from: '',
+  date_to: '',
 })
 
 const purchaseData = ref<any>(null)
@@ -187,10 +184,7 @@ function exportMutation() {
   })))
 }
 
-onMounted(async () => {
-  await loadMasters()
-  await runReport()
-})
+onMounted(loadMasters)
 </script>
 
 <template>
@@ -217,18 +211,18 @@ onMounted(async () => {
         :required="tab === 'mutation'"
         :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))"
       />
-      <BaseDatePicker
-        v-model="filters.date_from"
-        :label="`Date From ${tab === 'purchase' || tab === 'sale' ? '(wajib)' : ''}`"
-        :required="tab === 'purchase' || tab === 'sale'"
-      />
-      <BaseDatePicker
-        v-model="filters.date_to"
-        :label="`Date To ${tab === 'purchase' || tab === 'sale' ? '(wajib)' : ''}`"
-        :required="tab === 'purchase' || tab === 'sale'"
+      <BaseDateRangePicker
+        :label="`Range Tanggal ${tab === 'purchase' || tab === 'sale' ? '(wajib dipilih)' : ''}`"
+        :from="filters.date_from"
+        :to="filters.date_to"
+        @update:from="(v) => (filters.date_from = v)"
+        @update:to="(v) => (filters.date_to = v)"
       />
       <BaseButton type="submit" :loading="loading">Run Report</BaseButton>
     </form>
+    <p v-if="(tab === 'purchase' || tab === 'sale') && filters.date_from && filters.date_to" class="active-range">
+      Menampilkan data: {{ formatDateRangeLabel(filters.date_from, filters.date_to) }}
+    </p>
 
     <template v-if="tab === 'purchase' && purchaseData">
       <div class="section-header"><h2>Outstanding Purchase Orders</h2><BaseButton variant="secondary" size="sm" @click="exportOutstandingPo">Export CSV</BaseButton></div>
@@ -392,4 +386,5 @@ onMounted(async () => {
 .section-header h2 { margin: 0; font-size: 16px; }
 .summary-box { display: flex; gap: 24px; background: var(--color-surface); padding: 14px 16px; border-radius: var(--radius-md); box-shadow: var(--elevation-1); margin-bottom: 12px; font-size: 14px; }
 .error { color: var(--color-danger); }
+.active-range { font-size: 13px; color: var(--color-text-muted); margin: -12px 0 16px; }
 </style>

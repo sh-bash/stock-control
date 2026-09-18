@@ -10,6 +10,29 @@ export interface FilterDef {
   default?: string
 }
 
+// Shared "last 30 days" default for the mandatory date-range filter on every
+// transaction list — computed fresh each call (not a module-level constant)
+// so a page kept open across midnight still gets today, not a stale date.
+export function defaultDateFrom(daysBack = 29) {
+  return new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+export function defaultDateTo() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+const SHORT_MONTHS_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+// Renders the active date range for the filter chip, e.g. "19 Agu - 18 Sep
+// 2026" — drops the repeated year on the `from` side when both dates fall
+// in the same year, per the example in the design.
+export function formatDateRangeLabel(from: string, to: string) {
+  const [fy, fm, fd] = from.split('-').map(Number)
+  const [ty, tm, td] = to.split('-').map(Number)
+  const fromLabel = fy === ty ? `${fd} ${SHORT_MONTHS_ID[fm - 1]}` : `${fd} ${SHORT_MONTHS_ID[fm - 1]} ${fy}`
+  const toLabel = `${td} ${SHORT_MONTHS_ID[tm - 1]} ${ty}`
+  return `${fromLabel} - ${toLabel}`
+}
+
 export function useTableFilters(defs: FilterDef[], onChange: () => void) {
   const route = useRoute()
   const router = useRouter()

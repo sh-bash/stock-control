@@ -195,13 +195,6 @@ const ledgerColumns = computed(() => [
   { key: 'running_balance_value', label: 'Balance Value', align: 'right' as const },
 ])
 
-function defaultLedgerDateFrom() {
-  return new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
-function defaultLedgerDateTo() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 const {
   filters: ledgerFilters,
   setFilter: setLedgerFilter,
@@ -213,8 +206,8 @@ const {
     { key: 'warehouse_id' },
     { key: 'product_id' },
     { key: 'transaction_type', multi: true },
-    { key: 'date_from', default: defaultLedgerDateFrom() },
-    { key: 'date_to', default: defaultLedgerDateTo() },
+    { key: 'date_from', default: defaultDateFrom() },
+    { key: 'date_to', default: defaultDateTo() },
   ],
   () => {
     ledgerPage.value = 1
@@ -225,8 +218,8 @@ const {
 // range instead of clearing it to empty (an unbounded stock_ledger query).
 function resetLedgerFilters() {
   resetLedgerFiltersRaw()
-  ledgerFilters.date_from = defaultLedgerDateFrom()
-  ledgerFilters.date_to = defaultLedgerDateTo()
+  ledgerFilters.date_from = defaultDateFrom()
+  ledgerFilters.date_to = defaultDateTo()
   loadLedger()
 }
 
@@ -237,7 +230,7 @@ const ledgerChips = computed(() => {
   for (const t of ledgerFilters.transaction_type) {
     chips.push({ key: `tt:${t}`, label: `Type: ${TRANSACTION_TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t}` })
   }
-  chips.push({ key: 'date_range', label: `Tanggal: ${ledgerFilters.date_from} – ${ledgerFilters.date_to}` })
+  chips.push({ key: 'date_range', label: `Transaction Date: ${formatDateRangeLabel(ledgerFilters.date_from, ledgerFilters.date_to)}` })
   return chips
 })
 
@@ -246,8 +239,8 @@ function removeLedgerChip(key: string) {
     const val = key.slice(3)
     setLedgerFilter('transaction_type', ledgerFilters.transaction_type.filter((t: string) => t !== val))
   } else if (key === 'date_range') {
-    setLedgerFilter('date_from', defaultLedgerDateFrom())
-    setLedgerFilter('date_to', defaultLedgerDateTo())
+    setLedgerFilter('date_from', defaultDateFrom())
+    setLedgerFilter('date_to', defaultDateTo())
   } else {
     removeLedgerFilter(key)
   }
@@ -261,8 +254,8 @@ async function loadLedger() {
     if (ledgerFilters.product_id) params.set('product_id', ledgerFilters.product_id)
     if (ledgerFilters.warehouse_id) params.set('warehouse_id', ledgerFilters.warehouse_id)
     if (ledgerFilters.transaction_type.length) params.set('transaction_type', ledgerFilters.transaction_type.join(','))
-    params.set('date_from', ledgerFilters.date_from || defaultLedgerDateFrom())
-    params.set('date_to', ledgerFilters.date_to || defaultLedgerDateTo())
+    params.set('date_from', ledgerFilters.date_from || defaultDateFrom())
+    params.set('date_to', ledgerFilters.date_to || defaultDateTo())
     if (ledgerSort.value.direction) {
       params.set('sortBy', ledgerSort.value.key)
       params.set('sortDir', ledgerSort.value.direction)

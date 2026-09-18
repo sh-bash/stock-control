@@ -53,8 +53,8 @@ const { filters, setFilter, removeFilter, resetAll, activeCount } = useTableFilt
   [
     { key: 'status', multi: true },
     { key: 'expedition_id' },
-    { key: 'date_from' },
-    { key: 'date_to' },
+    { key: 'date_from', default: defaultDateFrom() },
+    { key: 'date_to', default: defaultDateTo() },
   ],
   () => {
     page.value = 1
@@ -68,9 +68,7 @@ const filterChips = computed(() => {
     chips.push({ key: `status:${s}`, label: `Status: ${STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s}` })
   }
   if (filters.expedition_id) chips.push({ key: 'expedition_id', label: `Expedition: ${expeditionName(filters.expedition_id)}` })
-  if (filters.date_from || filters.date_to) {
-    chips.push({ key: 'date_range', label: `Tanggal: ${filters.date_from || '...'} – ${filters.date_to || '...'}` })
-  }
+  chips.push({ key: 'date_range', label: `Ship Date: ${formatDateRangeLabel(filters.date_from, filters.date_to)}` })
   return chips
 })
 
@@ -79,8 +77,8 @@ function removeChip(key: string) {
     const val = key.slice('status:'.length)
     setFilter('status', filters.status.filter((s: string) => s !== val))
   } else if (key === 'date_range') {
-    setFilter('date_from', '')
-    setFilter('date_to', '')
+    setFilter('date_from', defaultDateFrom())
+    setFilter('date_to', defaultDateTo())
   } else {
     removeFilter(key)
   }
