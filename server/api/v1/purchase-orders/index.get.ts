@@ -11,6 +11,9 @@ export default defineEventHandler(async (event) => {
   const warehouseId = typeof q.warehouse_id === 'string' ? q.warehouse_id : undefined
   const supplierId = typeof q.supplier_id === 'string' ? q.supplier_id : undefined
 
-  const { rows, totalRows } = await listOrdersPaged({ ...paging, status, warehouseId, supplierId })
+  const requestId = typeof q.request_id === 'string' ? q.request_id : undefined
+  const comparisonId = typeof q.comparison_id === 'string' ? q.comparison_id : undefined
+
+  const { rows, totalRows } = await listOrdersPaged({ ...paging, status, warehouseId, supplierId, requestId, comparisonId })
   return success(rows, null, { page: paging.page, pageSize: paging.pageSize, totalRows })
 })

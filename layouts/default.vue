@@ -27,7 +27,6 @@ const navGroups = [
       { to: '/master/units', label: 'Units' },
       { to: '/master/products', label: 'Products' },
       { to: '/master/suppliers', label: 'Suppliers' },
-      { to: '/master/customers', label: 'Customers' },
       { to: '/master/expeditions', label: 'Expeditions' },
     ],
   },
@@ -35,19 +34,12 @@ const navGroups = [
     label: 'Purchase',
     icon: '🛒',
     items: [
-      { to: '/purchase/orders', label: 'Purchase Orders', tour: 'nav-purchase' },
+      { to: '/purchase/requests', label: 'Product Requests', tour: 'nav-purchase' },
+      { to: '/purchase/comparisons', label: 'Product Comparison' },
+      { to: '/purchase/orders', label: 'Purchase Orders' },
       { to: '/purchase/shipments', label: 'Shipments' },
       { to: '/purchase/receivings', label: 'Receivings' },
       { to: '/purchase/returns', label: 'Purchase Returns' },
-    ],
-  },
-  {
-    label: 'Sale',
-    icon: '💰',
-    items: [
-      { to: '/sales/orders', label: 'Sale Orders', tour: 'nav-sale' },
-      { to: '/sales/deliveries', label: 'Delivery Orders' },
-      { to: '/sales/returns', label: 'Sale Returns' },
     ],
   },
   {
@@ -55,6 +47,7 @@ const navGroups = [
     icon: '📦',
     items: [
       { to: '/stock/overview', label: 'Stock Overview', tour: 'nav-stock' },
+      { to: '/stock/import', label: 'Import Stock' },
       { to: '/stock/transfers', label: 'Stock Transfers' },
       { to: '/stock/adjustments', label: 'Stock Adjustments' },
     ],

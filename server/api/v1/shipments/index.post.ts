@@ -8,12 +8,18 @@ const schema = z.object({
   total_shipping_cost: z.number().nonnegative(),
   allocation_method: z.enum(['per_qty', 'per_value', 'per_weight']),
   po_ids: z.array(z.string().uuid()).min(1),
+  tracking_no: z.string().max(100).nullable().optional(),
+  bl_number: z.string().max(100).nullable().optional(),
+  container_no: z.string().max(100).nullable().optional(),
+  eta_date: z.string().min(1).nullable().optional(),
+  notes: z.string().nullable().optional(),
   items: z
     .array(
       z.object({
         po_item_id: z.string().uuid(),
         qty_shipped: z.number().positive(),
         weight: z.number().positive().optional(),
+        volume: z.number().positive().optional(),
       }),
     )
     .min(1),

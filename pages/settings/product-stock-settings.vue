@@ -124,54 +124,21 @@ onMounted(loadAll)
 
     <form class="create-form" @submit.prevent="createSetting">
       <div class="row">
-        <label>
-          Product
-          <select v-model="form.product_id" required>
-            <option value="">-- pilih --</option>
-            <option v-for="p in products" :key="p.id" :value="p.id">{{ p.sku }} - {{ p.name }}</option>
-          </select>
-        </label>
-        <label>
-          Warehouse (opsional)
-          <select v-model="form.warehouse_id">
-            <option value="">Semua warehouse</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-          </select>
-        </label>
+        <BaseSearchableSelect v-model="form.product_id" label="Product" required :options="products.map((p) => ({ value: p.id, label: `${p.sku} - ${p.name}` }))" />
+        <BaseSearchableSelect v-model="form.warehouse_id" label="Warehouse (opsional)" placeholder="Semua warehouse" :options="warehouses.map((w) => ({ value: w.id, label: w.name }))" />
       </div>
       <div class="row">
-        <label>
-          Min Stock
-          <input v-model.number="form.min_stock" type="number" step="any" min="0" />
-        </label>
-        <label>
-          Reorder Point
-          <input v-model.number="form.reorder_point" type="number" step="any" min="0" />
-        </label>
-        <label>
-          Reorder Qty
-          <input v-model.number="form.reorder_qty" type="number" step="any" min="0" />
-        </label>
+        <BaseNumberInput v-model="form.min_stock" label="Min Stock" />
+        <BaseNumberInput v-model="form.reorder_point" label="Reorder Point" />
+        <BaseNumberInput v-model="form.reorder_qty" decimals="auto" label="Reorder Qty" />
       </div>
       <div class="row">
-        <label>
-          Fast Moving Min Daily Out
-          <input v-model.number="form.fast_moving_min_daily_out" type="number" step="any" min="0" />
-        </label>
-        <label>
-          Slow Moving Max Daily Out
-          <input v-model.number="form.slow_moving_max_daily_out" type="number" step="any" min="0" />
-        </label>
+        <BaseNumberInput v-model="form.fast_moving_min_daily_out" label="Fast Moving Min Daily Out" />
+        <BaseNumberInput v-model="form.slow_moving_max_daily_out" label="Slow Moving Max Daily Out" />
       </div>
       <div class="row">
-        <label>
-          Aging Warning Days
-          <input v-model.number="form.aging_warning_days" type="number" min="0" />
-        </label>
-        <label>
-          Aging Danger Days
-          <input v-model.number="form.aging_danger_days" type="number" min="0" />
-        </label>
+        <BaseNumberInput v-model="form.aging_warning_days" label="Aging Warning Days" :decimals="0" />
+        <BaseNumberInput v-model="form.aging_danger_days" label="Aging Danger Days" :decimals="0" />
       </div>
       <button type="submit">Buat Override</button>
     </form>
@@ -188,13 +155,13 @@ onMounted(loadAll)
         <tr v-for="s in settings" :key="s.id">
           <td>{{ productLabel(s.product_id) }}</td>
           <td>{{ warehouseName(s.warehouse_id) }}</td>
-          <td>{{ s.min_stock ?? '-' }}</td>
-          <td>{{ s.reorder_point ?? '-' }}</td>
-          <td>{{ s.reorder_qty ?? '-' }}</td>
-          <td>{{ s.fast_moving_min_daily_out ?? '-' }}</td>
-          <td>{{ s.slow_moving_max_daily_out ?? '-' }}</td>
-          <td>{{ s.aging_warning_days ?? '-' }}</td>
-          <td>{{ s.aging_danger_days ?? '-' }}</td>
+          <td>{{ formatQty(s.min_stock) }}</td>
+          <td>{{ formatQty(s.reorder_point) }}</td>
+          <td>{{ formatQty(s.reorder_qty) }}</td>
+          <td>{{ formatQty(s.fast_moving_min_daily_out) }}</td>
+          <td>{{ formatQty(s.slow_moving_max_daily_out) }}</td>
+          <td>{{ formatInt(s.aging_warning_days) }}</td>
+          <td>{{ formatInt(s.aging_danger_days) }}</td>
           <td><span class="status" :class="s.is_active ? 'status-active' : 'status-inactive'">{{ s.is_active ? 'active' : 'inactive' }}</span></td>
           <td>
             <button class="link" @click="toggleActive(s)">{{ s.is_active ? 'Nonaktifkan' : 'Aktifkan' }}</button>

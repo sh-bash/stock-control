@@ -38,7 +38,7 @@ function buildSteps(): import('driver.js').DriveStep[] {
       element: '[data-tour="nav-master"]',
       popover: {
         title: 'Master Data',
-        description: 'Warehouses, Kategori Produk, Unit, Produk, Supplier, Customer, Ekspedisi — data dasar yang dipakai di seluruh modul lain. Semua halaman ini punya pola yang sama: form tambah/edit di atas, tabel di bawah.',
+        description: 'Warehouses, Kategori Produk, Unit, Produk, Supplier, Ekspedisi — data dasar yang dipakai di seluruh modul lain. Semua halaman ini punya pola yang sama: form tambah/edit di atas, tabel di bawah.',
         side: 'right',
       },
     },
@@ -54,15 +54,7 @@ function buildSteps(): import('driver.js').DriveStep[] {
       element: '[data-tour="nav-purchase"]',
       popover: {
         title: 'Purchase',
-        description: 'Alur pembelian: Purchase Order → Shipment (alokasi biaya kirim) → Receiving (stok masuk, HPP dihitung otomatis) → Purchase Return.',
-        side: 'right',
-      },
-    },
-    {
-      element: '[data-tour="nav-sale"]',
-      popover: {
-        title: 'Sale',
-        description: 'Alur penjualan: Sale Order (pilih apakah pakai Delivery Order terpisah atau langsung) → Delivery Order → Sale Return.',
+        description: 'Alur pembelian: Product Request → Product Comparison → Purchase Order → Shipment (alokasi biaya kirim) → Receiving (stok masuk, HPP dihitung otomatis) → Purchase Return.',
         side: 'right',
       },
     },
@@ -86,7 +78,7 @@ function buildSteps(): import('driver.js').DriveStep[] {
       element: '[data-tour="nav-reports"]',
       popover: {
         title: 'Reports',
-        description: 'Laporan Purchase, Sale, Valuasi Inventori, dan Kartu Stok (mutasi) — semuanya dengan filter periode/gudang/produk.',
+        description: 'Laporan Purchase, Valuasi Inventori, dan Kartu Stok (mutasi) — semuanya dengan filter periode/gudang/produk.',
         side: 'right',
       },
     },

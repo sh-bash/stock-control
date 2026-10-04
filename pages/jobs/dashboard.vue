@@ -167,8 +167,8 @@ onMounted(loadAll)
           <tr v-for="log in logs" :key="log.id">
             <td>{{ log.job_name }}</td>
             <td><span class="badge" :class="`badge-status-${log.status}`">{{ log.status }}</span></td>
-            <td>{{ log.rows_processed ?? '-' }}</td>
-            <td>{{ log.duration_ms ?? '-' }}</td>
+            <td>{{ formatInt(log.rows_processed) }}</td>
+            <td>{{ formatInt(log.duration_ms) }}</td>
             <td>{{ new Date(log.executed_at).toLocaleString() }}</td>
             <td class="note">{{ log.error_message ?? '-' }}</td>
           </tr>

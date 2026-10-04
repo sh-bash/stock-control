@@ -23,8 +23,6 @@ export default defineEventHandler(async (event) => {
       day: r.day,
       purchase_qty: Number(r.purchase_qty),
       purchase_value: Number(r.purchase_value),
-      sale_qty: Number(r.sale_qty),
-      sale_value: Number(r.sale_value),
     })),
   })
 })

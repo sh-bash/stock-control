@@ -32,6 +32,15 @@ const fields = computed(() => [
     type: 'select' as const,
     options: [{ value: 'fifo', label: 'FIFO' }],
   },
+  // Physical specs (also filled automatically when promoted from a Product Comparison).
+  { key: 'weight_kg', label: 'Berat (kg)', type: 'number' as const, listHidden: true },
+  { key: 'length_cm', label: 'Panjang produk (cm)', type: 'number' as const, listHidden: true },
+  { key: 'width_cm', label: 'Lebar produk (cm)', type: 'number' as const, listHidden: true },
+  { key: 'height_cm', label: 'Tinggi produk (cm)', type: 'number' as const, listHidden: true },
+  { key: 'pack_length_cm', label: 'Panjang kemasan (cm)', type: 'number' as const, listHidden: true },
+  { key: 'pack_width_cm', label: 'Lebar kemasan (cm)', type: 'number' as const, listHidden: true },
+  { key: 'pack_height_cm', label: 'Tinggi kemasan (cm)', type: 'number' as const, listHidden: true },
+  { key: 'notes', label: 'Catatan', listHidden: true },
 ])
 </script>
 

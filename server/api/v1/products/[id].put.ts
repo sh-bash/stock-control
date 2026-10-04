@@ -9,6 +9,14 @@ const schema = z.object({
   base_unit_id: z.string().uuid().nullable().optional(),
   costing_method: z.string().max(10).optional(),
   is_active: z.boolean().optional(),
+  weight_kg: z.number().nonnegative().nullable().optional(),
+  length_cm: z.number().nonnegative().nullable().optional(),
+  width_cm: z.number().nonnegative().nullable().optional(),
+  height_cm: z.number().nonnegative().nullable().optional(),
+  pack_length_cm: z.number().nonnegative().nullable().optional(),
+  pack_width_cm: z.number().nonnegative().nullable().optional(),
+  pack_height_cm: z.number().nonnegative().nullable().optional(),
+  notes: z.string().nullable().optional(),
 })
 
 export default defineEventHandler(async (event) => {

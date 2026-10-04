@@ -246,3 +246,116 @@ button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ------------------------------------------------------------------
+ * Document pages (create / edit / detail) — shared building blocks so
+ * the separate-page CRUD screens look consistent without per-page CSS.
+ * ------------------------------------------------------------------ */
+.doc-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.doc-card > h2,
+.doc-card > h3 {
+  margin: 0 0 var(--space-3);
+  font-size: 15px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.doc-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.doc-sticky-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-4) calc(var(--space-4) * -1) 0;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--color-border);
+}
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.doc-table th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+.doc-table td {
+  padding: 6px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-neutral-bg);
+}
+.doc-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.doc-table tfoot td {
+  font-weight: 700;
+  border-bottom: none;
+}
+.doc-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-3);
+  font-size: 13px;
+}
+.doc-meta dt {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.doc-meta dd {
+  margin: 0;
+  font-weight: 500;
+}
+.doc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .doc-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.error-text {
+  color: var(--color-danger);
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
+}
+.muted {
+  color: var(--color-text-muted);
+}
+.link-cell {
+  background: none;
+  border: none;
+  color: var(--color-info);
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+  text-decoration: underline;
+}

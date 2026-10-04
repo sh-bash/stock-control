@@ -1954,6 +1954,554 @@
         }
       }
     },
+    "/api/v1/attachments": {
+      "get": {
+        "tags": [
+          "attachments"
+        ],
+        "summary": "GET /api/v1/attachments",
+        "operationId": "get__api_v1_attachments",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ owner_type: z.string().min(1), owner_id: z.string().uuid() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "attachments"
+        ],
+        "summary": "POST /api/v1/attachments",
+        "operationId": "post__api_v1_attachments",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ owner_type: z.string().min(1), owner_id: z.string().uuid() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attachments/{id}/file": {
+      "get": {
+        "tags": [
+          "attachments"
+        ],
+        "summary": "GET /api/v1/attachments/{id}/file",
+        "operationId": "get__api_v1_attachments__id__file",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attachments/{id}": {
+      "delete": {
+        "tags": [
+          "attachments"
+        ],
+        "summary": "DELETE /api/v1/attachments/{id}",
+        "operationId": "delete__api_v1_attachments__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -2368,14 +2916,25 @@
         }
       }
     },
-    "/api/v1/customers": {
+    "/api/v1/comments": {
       "get": {
         "tags": [
-          "customers"
+          "comments"
         ],
-        "summary": "GET /api/v1/customers",
-        "operationId": "get__api_v1_customers",
+        "summary": "GET /api/v1/comments",
+        "operationId": "get__api_v1_comments",
         "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ ref_type: z.enum(COMMENT_REF_TYPES), ref_id: z.string().uuid() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
@@ -2496,14 +3055,14 @@
       },
       "post": {
         "tags": [
-          "customers"
+          "comments"
         ],
-        "summary": "POST /api/v1/customers",
-        "operationId": "post__api_v1_customers",
+        "summary": "POST /api/v1/comments",
+        "operationId": "post__api_v1_comments",
         "security": [],
         "requestBody": {
           "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  name: z.string().min(1).max(150),\n  contact: z.string().max(100).optional(),\n  phone: z.string().max(30).optional(),\n  payment_term_days: z.number().int().optional(),\n  price_level_id: z.string().uuid().nullable().optional(),\n  is_active: z.boolean().optional(),\n})\n```",
+          "description": "Validated with zod:\n```ts\nz.object({\n      ref_type: z.enum(COMMENT_REF_TYPES),\n      ref_id: z.string().uuid(),\n      message: z.string().trim().min(1).max(2000),\n      is_issue: z.boolean().default(false),\n    })\n```",
           "content": {
             "application/json": {
               "schema": {
@@ -2631,13 +3190,13 @@
         }
       }
     },
-    "/api/v1/customers/{id}": {
-      "delete": {
+    "/api/v1/comments/{id}": {
+      "put": {
         "tags": [
-          "customers"
+          "comments"
         ],
-        "summary": "DELETE /api/v1/customers/{id}",
-        "operationId": "delete__api_v1_customers__id_",
+        "summary": "PUT /api/v1/comments/{id}",
+        "operationId": "put__api_v1_comments__id_",
         "security": [],
         "parameters": [
           {
@@ -2649,6 +3208,17 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ is_issue: z.boolean() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
@@ -2766,13 +3336,163 @@
             }
           }
         }
-      },
-      "get": {
+      }
+    },
+    "/api/v1/comparison-candidates/{id}/select": {
+      "post": {
         "tags": [
-          "customers"
+          "comparison-candidates"
         ],
-        "summary": "GET /api/v1/customers/{id}",
-        "operationId": "get__api_v1_customers__id_",
+        "summary": "POST /api/v1/comparison-candidates/{id}/select",
+        "operationId": "post__api_v1_comparison-candidates__id__select",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ selected: z.boolean() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/comparison-candidates/{id}": {
+      "delete": {
+        "tags": [
+          "comparison-candidates"
+        ],
+        "summary": "DELETE /api/v1/comparison-candidates/{id}",
+        "operationId": "delete__api_v1_comparison-candidates__id_",
         "security": [],
         "parameters": [
           {
@@ -2904,10 +3624,10 @@
       },
       "put": {
         "tags": [
-          "customers"
+          "comparison-candidates"
         ],
-        "summary": "PUT /api/v1/customers/{id}",
-        "operationId": "put__api_v1_customers__id_",
+        "summary": "PUT /api/v1/comparison-candidates/{id}",
+        "operationId": "put__api_v1_comparison-candidates__id_",
         "security": [],
         "parameters": [
           {
@@ -2919,17 +3639,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  name: z.string().min(1).max(150).optional(),\n  contact: z.string().max(100).optional(),\n  phone: z.string().max(30).optional(),\n  payment_term_days: z.number().int().optional(),\n  price_level_id: z.string().uuid().nullable().optional(),\n  is_active: z.boolean().optional(),\n})\n```",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
@@ -3561,6 +4270,133 @@
         }
       }
     },
+    "/api/v1/dashboard/procurement-overview": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "GET /api/v1/dashboard/procurement-overview",
+        "operationId": "get__api_v1_dashboard_procurement-overview",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dashboard/purchase-sale-trend": {
       "get": {
         "tags": [
@@ -3823,543 +4659,6 @@
         "summary": "GET /api/v1/dashboard/stock-value-overview",
         "operationId": "get__api_v1_dashboard_stock-value-overview",
         "security": [],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/delivery-orders": {
-      "get": {
-        "tags": [
-          "delivery-orders"
-        ],
-        "summary": "GET /api/v1/delivery-orders",
-        "operationId": "get__api_v1_delivery-orders",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "delivery-orders"
-        ],
-        "summary": "POST /api/v1/delivery-orders",
-        "operationId": "post__api_v1_delivery-orders",
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  so_id: z.string().uuid(),\n  warehouse_id: z.string().uuid(),\n  delivery_date: z.string().min(1),\n  items: z\n    .array(\n      z.object({\n        so_item_id: z.string().uuid(),\n        product_id: z.string().uuid(),\n        qty_delivered: z.number().positive(),\n      }),\n    )\n    .min(1),\n})\n```",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/delivery-orders/{id}/approve": {
-      "post": {
-        "tags": [
-          "delivery-orders"
-        ],
-        "summary": "POST /api/v1/delivery-orders/{id}/approve",
-        "operationId": "post__api_v1_delivery-orders__id__approve",
-        "security": [],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/delivery-orders/{id}": {
-      "get": {
-        "tags": [
-          "delivery-orders"
-        ],
-        "summary": "GET /api/v1/delivery-orders/{id}",
-        "operationId": "get__api_v1_delivery-orders__id_",
-        "security": [],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
@@ -7856,6 +8155,2168 @@
         }
       }
     },
+    "/api/v1/product-comparisons": {
+      "get": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "GET /api/v1/product-comparisons",
+        "operationId": "get__api_v1_product-comparisons",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "POST /api/v1/product-comparisons",
+        "operationId": "post__api_v1_product-comparisons",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-comparisons/{id}/candidates": {
+      "post": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "POST /api/v1/product-comparisons/{id}/candidates",
+        "operationId": "post__api_v1_product-comparisons__id__candidates",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-comparisons/{id}/po-draft": {
+      "get": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "GET /api/v1/product-comparisons/{id}/po-draft",
+        "operationId": "get__api_v1_product-comparisons__id__po-draft",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-comparisons/{id}/promote": {
+      "post": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "POST /api/v1/product-comparisons/{id}/promote",
+        "operationId": "post__api_v1_product-comparisons__id__promote",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-comparisons/{id}": {
+      "delete": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "DELETE /api/v1/product-comparisons/{id}",
+        "operationId": "delete__api_v1_product-comparisons__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "GET /api/v1/product-comparisons/{id}",
+        "operationId": "get__api_v1_product-comparisons__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "product-comparisons"
+        ],
+        "summary": "PUT /api/v1/product-comparisons/{id}",
+        "operationId": "put__api_v1_product-comparisons__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-requests": {
+      "get": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "GET /api/v1/product-requests",
+        "operationId": "get__api_v1_product-requests",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "POST /api/v1/product-requests",
+        "operationId": "post__api_v1_product-requests",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-requests/{id}/approve": {
+      "post": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "POST /api/v1/product-requests/{id}/approve",
+        "operationId": "post__api_v1_product-requests__id__approve",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ note: z.string().optional() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-requests/{id}/reject": {
+      "post": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "POST /api/v1/product-requests/{id}/reject",
+        "operationId": "post__api_v1_product-requests__id__reject",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ note: z.string().optional() })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-requests/{id}/submit": {
+      "post": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "POST /api/v1/product-requests/{id}/submit",
+        "operationId": "post__api_v1_product-requests__id__submit",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/product-requests/{id}": {
+      "delete": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "DELETE /api/v1/product-requests/{id}",
+        "operationId": "delete__api_v1_product-requests__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "GET /api/v1/product-requests/{id}",
+        "operationId": "get__api_v1_product-requests__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "product-requests"
+        ],
+        "summary": "PUT /api/v1/product-requests/{id}",
+        "operationId": "put__api_v1_product-requests__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/product-stock-settings": {
       "get": {
         "tags": [
@@ -8537,7 +10998,7 @@
         "security": [],
         "requestBody": {
           "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  sku: z.string().min(1).max(50),\n  name: z.string().min(1).max(150),\n  category_id: z.string().uuid().nullable().optional(),\n  base_unit_id: z.string().uuid().nullable().optional(),\n  costing_method: z.string().max(10).optional(),\n  is_active: z.boolean().optional(),\n})\n```",
+          "description": "Validated with zod:\n```ts\nz.object({\n  sku: z.string().min(1).max(50),\n  name: z.string().min(1).max(150),\n  category_id: z.string().uuid().nullable().optional(),\n  base_unit_id: z.string().uuid().nullable().optional(),\n  costing_method: z.string().max(10).optional(),\n  is_active: z.boolean().optional(),\n  weight_kg: z.number().nonnegative().nullable().optional(),\n  length_cm: z.number().nonnegative().nullable().optional(),\n  width_cm: z.number().nonnegative().nullable().optional(),\n  height_cm: z.number().nonnegative().nullable().optional(),\n  pack_length_cm: z.number().nonnegative().nullable().optional(),\n  pack_width_cm: z.number().nonnegative().nullable().optional(),\n  pack_height_cm: z.number().nonnegative().nullable().optional(),\n  notes: z.string().nullable().optional(),\n})\n```",
           "content": {
             "application/json": {
               "schema": {
@@ -8955,7 +11416,7 @@
         ],
         "requestBody": {
           "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  sku: z.string().min(1).max(50).optional(),\n  name: z.string().min(1).max(150).optional(),\n  category_id: z.string().uuid().nullable().optional(),\n  base_unit_id: z.string().uuid().nullable().optional(),\n  costing_method: z.string().max(10).optional(),\n  is_active: z.boolean().optional(),\n})\n```",
+          "description": "Validated with zod:\n```ts\nz.object({\n  sku: z.string().min(1).max(50).optional(),\n  name: z.string().min(1).max(150).optional(),\n  category_id: z.string().uuid().nullable().optional(),\n  base_unit_id: z.string().uuid().nullable().optional(),\n  costing_method: z.string().max(10).optional(),\n  is_active: z.boolean().optional(),\n  weight_kg: z.number().nonnegative().nullable().optional(),\n  length_cm: z.number().nonnegative().nullable().optional(),\n  width_cm: z.number().nonnegative().nullable().optional(),\n  height_cm: z.number().nonnegative().nullable().optional(),\n  pack_length_cm: z.number().nonnegative().nullable().optional(),\n  pack_width_cm: z.number().nonnegative().nullable().optional(),\n  pack_height_cm: z.number().nonnegative().nullable().optional(),\n  notes: z.string().nullable().optional(),\n})\n```",
           "content": {
             "application/json": {
               "schema": {
@@ -9215,22 +11676,134 @@
         ],
         "summary": "POST /api/v1/purchase-orders",
         "operationId": "post__api_v1_purchase-orders",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  supplier_id: z.string().uuid(),\n  warehouse_id: z.string().uuid(),\n  order_date: z.string().min(1),\n  items: z\n    .array(\n      z.object({\n        product_id: z.string().uuid(),\n        qty_order: z.number().positive(),\n        unit_price: z.number().nonnegative(),\n      }),\n    )\n    .min(1),\n})\n```",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
               }
             }
           }
-        },
+        }
+      }
+    },
+    "/api/v1/purchase-orders/shippable": {
+      "get": {
+        "tags": [
+          "purchase-orders"
+        ],
+        "summary": "GET /api/v1/purchase-orders/shippable",
+        "operationId": "get__api_v1_purchase-orders_shippable",
+        "security": [],
         "responses": {
           "200": {
             "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
@@ -9792,12 +12365,282 @@
       }
     },
     "/api/v1/purchase-orders/{id}": {
+      "delete": {
+        "tags": [
+          "purchase-orders"
+        ],
+        "summary": "DELETE /api/v1/purchase-orders/{id}",
+        "operationId": "delete__api_v1_purchase-orders__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "purchase-orders"
         ],
         "summary": "GET /api/v1/purchase-orders/{id}",
         "operationId": "get__api_v1_purchase-orders__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "purchase-orders"
+        ],
+        "summary": "PUT /api/v1/purchase-orders/{id}",
+        "operationId": "put__api_v1_purchase-orders__id_",
         "security": [],
         "parameters": [
           {
@@ -10064,6 +12907,144 @@
         "requestBody": {
           "required": true,
           "description": "Validated with zod:\n```ts\nz.object({\n  receiving_id: z.string().uuid(),\n  warehouse_id: z.string().uuid(),\n  return_date: z.string().min(1),\n  reason: z.string().optional(),\n  items: z\n    .array(\n      z.object({\n        product_id: z.string().uuid(),\n        stock_layer_id: z.string().uuid(),\n        qty_return: z.number().positive(),\n      }),\n    )\n    .min(1),\n})\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-returns/warnings": {
+      "get": {
+        "tags": [
+          "purchase-returns"
+        ],
+        "summary": "GET /api/v1/purchase-returns/warnings",
+        "operationId": "get__api_v1_purchase-returns_warnings",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ receiving_id: z.string().uuid() })\n```",
           "content": {
             "application/json": {
               "schema": {
@@ -11868,6 +14849,133 @@
         }
       }
     },
+    "/api/v1/reports/procurement": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "GET /api/v1/reports/procurement",
+        "operationId": "get__api_v1_reports_procurement",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports/purchase": {
       "get": {
         "tags": [
@@ -11995,13 +15103,13 @@
         }
       }
     },
-    "/api/v1/reports/sale": {
+    "/api/v1/reports/shipment": {
       "get": {
         "tags": [
           "reports"
         ],
-        "summary": "GET /api/v1/reports/sale",
-        "operationId": "get__api_v1_reports_sale",
+        "summary": "GET /api/v1/reports/shipment",
+        "operationId": "get__api_v1_reports_shipment",
         "security": [],
         "responses": {
           "200": {
@@ -12130,947 +15238,6 @@
         "summary": "GET /api/v1/roles",
         "operationId": "get__api_v1_roles",
         "security": [],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sale-orders": {
-      "get": {
-        "tags": [
-          "sale-orders"
-        ],
-        "summary": "GET /api/v1/sale-orders",
-        "operationId": "get__api_v1_sale-orders",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "sale-orders"
-        ],
-        "summary": "POST /api/v1/sale-orders",
-        "operationId": "post__api_v1_sale-orders",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  customer_id: z.string().uuid(),\n  warehouse_id: z.string().uuid(),\n  order_date: z.string().min(1),\n  use_do: z.boolean().default(false),\n  items: z\n    .array(\n      z.object({\n        product_id: z.string().uuid(),\n        qty_order: z.number().positive(),\n        sell_price: z.number().nonnegative(),\n      }),\n    )\n    .min(1),\n})\n```",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sale-orders/{id}/confirm": {
-      "post": {
-        "tags": [
-          "sale-orders"
-        ],
-        "summary": "POST /api/v1/sale-orders/{id}/confirm",
-        "operationId": "post__api_v1_sale-orders__id__confirm",
-        "security": [],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sale-orders/{id}": {
-      "get": {
-        "tags": [
-          "sale-orders"
-        ],
-        "summary": "GET /api/v1/sale-orders/{id}",
-        "operationId": "get__api_v1_sale-orders__id_",
-        "security": [],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sale-returns": {
-      "get": {
-        "tags": [
-          "sale-returns"
-        ],
-        "summary": "GET /api/v1/sale-returns",
-        "operationId": "get__api_v1_sale-returns",
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "sale-returns"
-        ],
-        "summary": "POST /api/v1/sale-returns",
-        "operationId": "post__api_v1_sale-returns",
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  source_type: z.enum(['so', 'do']),\n  source_id: z.string().uuid(),\n  return_date: z.string().min(1),\n  condition: z.enum(['good', 'damaged']),\n  items: z\n    .array(\n      z.object({\n        product_id: z.string().uuid(),\n        qty_return: z.number().positive(),\n      }),\n    )\n    .min(1),\n})\n```",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "data": {},
-                    "message": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "meta": {
-                      "type": "object"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sale-returns/{id}": {
-      "get": {
-        "tags": [
-          "sale-returns"
-        ],
-        "summary": "GET /api/v1/sale-returns/{id}",
-        "operationId": "get__api_v1_sale-returns__id_",
-        "security": [],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
@@ -13588,7 +15755,7 @@
         "security": [],
         "requestBody": {
           "required": true,
-          "description": "Validated with zod:\n```ts\nz.object({\n  expedition_id: z.string().uuid(),\n  ship_date: z.string().min(1),\n  total_shipping_cost: z.number().nonnegative(),\n  allocation_method: z.enum(['per_qty', 'per_value', 'per_weight']),\n  po_ids: z.array(z.string().uuid()).min(1),\n  items: z\n    .array(\n      z.object({\n        po_item_id: z.string().uuid(),\n        qty_shipped: z.number().positive(),\n        weight: z.number().positive().optional(),\n      }),\n    )\n    .min(1),\n})\n```",
+          "description": "Validated with zod:\n```ts\nz.object({\n  expedition_id: z.string().uuid(),\n  ship_date: z.string().min(1),\n  total_shipping_cost: z.number().nonnegative(),\n  allocation_method: z.enum(['per_qty', 'per_value', 'per_weight']),\n  po_ids: z.array(z.string().uuid()).min(1),\n  tracking_no: z.string().max(100).nullable().optional(),\n  bl_number: z.string().max(100).nullable().optional(),\n  container_no: z.string().max(100).nullable().optional(),\n  eta_date: z.string().min(1).nullable().optional(),\n  notes: z.string().nullable().optional(),\n  items: z\n    .array(\n      z.object({\n        po_item_id: z.string().uuid(),\n        qty_shipped: z.number().positive(),\n        weight: z.number().positive().optional(),\n        volume: z.number().positive().optional(),\n      }),\n    )\n    .min(1),\n})\n```",
           "content": {
             "application/json": {
               "schema": {
@@ -13853,6 +16020,154 @@
         }
       }
     },
+    "/api/v1/shipments/{id}/status": {
+      "post": {
+        "tags": [
+          "shipments"
+        ],
+        "summary": "POST /api/v1/shipments/{id}/status",
+        "operationId": "post__api_v1_shipments__id__status",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({ status: z.enum(['in_transit', 'arrived', 'completed']) })\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shipments/{id}": {
       "get": {
         "tags": [
@@ -13860,6 +16175,406 @@
         ],
         "summary": "GET /api/v1/shipments/{id}",
         "operationId": "get__api_v1_shipments__id_",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stock/import": {
+      "get": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "GET /api/v1/stock/import",
+        "operationId": "get__api_v1_stock_import",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "POST /api/v1/stock/import",
+        "operationId": "post__api_v1_stock_import",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "description": "Validated with zod:\n```ts\nz.object({\n  mode: z.enum(['preview', 'commit']).default('preview'),\n  import_date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).default(today),\n  file_name: z.string().max(200).nullable().optional(),\n  rows: z.array(z.record(z.unknown())).min(1).max(20000),\n})\n```",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard response envelope used by every endpoint in this API (see server/utils/response.ts).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {},
+                    "message": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stock/import/{id}": {
+      "get": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "GET /api/v1/stock/import/{id}",
+        "operationId": "get__api_v1_stock_import__id_",
         "security": [],
         "parameters": [
           {

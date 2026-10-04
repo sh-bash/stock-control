@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { startTour } = useTour()
 
-const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboard' | 'admin'>('mulai')
+const tab = ref<'mulai' | 'purchase' | 'stock' | 'approval' | 'dashboard' | 'admin'>('mulai')
 </script>
 
 <template>
@@ -19,7 +19,6 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
     <div class="tabs">
       <button :class="{ active: tab === 'mulai' }" @click="tab = 'mulai'">Mulai Cepat</button>
       <button :class="{ active: tab === 'purchase' }" @click="tab = 'purchase'">Purchase</button>
-      <button :class="{ active: tab === 'sale' }" @click="tab = 'sale'">Sale</button>
       <button :class="{ active: tab === 'stock' }" @click="tab = 'stock'">Stock</button>
       <button :class="{ active: tab === 'approval' }" @click="tab = 'approval'">Approval &amp; Notifikasi</button>
       <button :class="{ active: tab === 'dashboard' }" @click="tab = 'dashboard'">Dashboard &amp; Reports</button>
@@ -30,16 +29,15 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
     <section v-if="tab === 'mulai'" class="card">
       <h2>Konsep Dasar</h2>
       <ul>
-        <li><strong>FIFO wajib</strong> — semua stok keluar (penjualan, transfer, retur ke supplier, adjustment minus) selalu mengambil dari layer stok yang paling lama masuk lebih dulu. Ini otomatis, tidak perlu diatur manual.</li>
-        <li><strong>Approval bersifat umum &amp; opsional per jenis dokumen</strong> — Purchase Order, Receiving, Purchase Return, dan Stock Adjustment melalui alur Submit → menunggu persetujuan → Approve/Reject. Sale Order, Delivery Order, Stock Transfer, dan Sale Return diproses langsung (satu tombol aksi), tidak melalui alur approval terpisah.</li>
+        <li><strong>FIFO wajib</strong> — semua stok keluar (transfer, retur ke supplier, adjustment minus) selalu mengambil dari layer stok yang paling lama masuk lebih dulu. Ini otomatis, tidak perlu diatur manual.</li>
+        <li><strong>Approval bersifat umum &amp; opsional per jenis dokumen</strong> — Purchase Order, Receiving, Purchase Return, dan Stock Adjustment melalui alur Submit → menunggu persetujuan → Approve/Reject. Stock Transfer diproses langsung (satu tombol aksi), tidak melalui alur approval terpisah.</li>
         <li><strong>Semua user melihat menu yang sama</strong> — tidak ada menu yang disembunyikan per role. Role dipakai untuk menentukan siapa approver di Approval Workflow dan siapa penerima di Notification Rules.</li>
         <li><strong>Notifikasi</strong> muncul di lonceng (topbar) dan sebagai popup — popup dengan label bahaya (merah) tidak hilang otomatis, harus ditutup manual karena dianggap penting.</li>
       </ul>
       <h2>Urutan Belajar yang Disarankan</h2>
       <ol>
-        <li>Lengkapi Master Data (Warehouse, Produk, Supplier/Customer) — lihat tab lain untuk detail tiap modul.</li>
+        <li>Lengkapi Master Data (Warehouse, Produk, Supplier) — lihat tab lain untuk detail tiap modul.</li>
         <li>Coba alur Purchase sampai stok masuk (lihat tab "Purchase").</li>
-        <li>Coba alur Sale untuk mengeluarkan stok (lihat tab "Sale").</li>
         <li>Pantau semuanya lewat Dashboard dan Reports.</li>
       </ol>
     </section>
@@ -47,16 +45,24 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
     <!-- ============ PURCHASE ============ -->
     <section v-if="tab === 'purchase'" class="card">
       <h2>Alur Pembelian</h2>
-      <p>PO → Shipment → Receiving → (opsional) Purchase Return</p>
+      <p>Product Request → Product Comparison → PO (RMB/IDR) → Shipment → Receiving → (opsional) Purchase Return</p>
       <ol>
         <li>
-          <strong>Purchase Order</strong> — buat PO dengan supplier, gudang tujuan, dan daftar produk+qty+harga.
+          <strong>Product Request</strong> — ajukan kebutuhan produk. Centang <em>Perlu approval</em> bila harus disetujui dulu; bila tidak, request langsung bisa dipakai setelah disubmit.
+          <NuxtLink to="/purchase/requests">Buka Product Requests →</NuxtLink>
+        </li>
+        <li>
+          <strong>Product Comparison</strong> — bandingkan beberapa kandidat (supplier/model) untuk sebuah request: harga (RMB/IDR), berat, dimensi produk &amp; kemasan, foto (bisa paste dengan Ctrl+V), catatan. Sistem memberi skor dan rekomendasi. Kandidat yang dipilih bisa langsung dijadikan master product.
+          <NuxtLink to="/purchase/comparisons">Buka Product Comparison →</NuxtLink>
+        </li>
+        <li>
+          <strong>Purchase Order</strong> — buat PO bebas, atau dari Product Request / Comparison. Pilih mata uang (RMB/IDR); untuk RMB isi kurs dan harga Rupiah dihitung otomatis.
           Status: <code>draft</code> → Submit → <code>waiting_approval</code> → Approve/Reject.
           <NuxtLink to="/purchase/orders">Buka Purchase Orders →</NuxtLink>
         </li>
         <li>
           <strong>Shipment</strong> — setelah PO approved, catat pengiriman dari ekspedisi: pilih PO yang mau dikirim,
-          total biaya kirim, dan metode alokasi biaya (per qty / per nilai barang / per berat — pilih sesuai kondisi:
+          berat tiap item, total biaya kirim, dan metode alokasi biaya (per qty / per nilai barang / per berat — pilih sesuai kondisi:
           "per qty" kalau semua barang sejenis, "per nilai" kalau barang campur murah-mahal, "per berat" kalau tarif ekspedisi berbasis berat).
           <NuxtLink to="/purchase/shipments">Buka Shipments →</NuxtLink>
         </li>
@@ -70,27 +76,6 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
           Mengurangi qty dari layer stok spesifik hasil receiving itu.
           <NuxtLink to="/purchase/returns">Buka Purchase Returns →</NuxtLink>
         </li>
-      </ol>
-    </section>
-
-    <!-- ============ SALE ============ -->
-    <section v-if="tab === 'sale'" class="card">
-      <h2>Alur Penjualan</h2>
-      <p><strong>Pilihan paling penting:</strong> saat membuat Sale Order, ada centang <code>use_do</code> (pakai Delivery Order terpisah).</p>
-      <table class="compare-table">
-        <thead><tr><th></th><th>use_do = tidak dicentang</th><th>use_do = dicentang</th></tr></thead>
-        <tbody>
-          <tr><td>Saat Confirm SO</td><td>Stok langsung berkurang (FIFO), transaksi selesai</td><td>Stok hanya "direservasi" (belum keluar fisik)</td></tr>
-          <tr><td>Butuh langkah lanjutan?</td><td>Tidak</td><td>Ya — buat &amp; approve Delivery Order</td></tr>
-          <tr><td>Kapan HPP/biaya pokok dihitung?</td><td>Saat Confirm SO</td><td>Saat Delivery Order di-approve</td></tr>
-          <tr><td>Cocok untuk</td><td>Penjualan langsung/tunai, barang langsung diambil</td><td>Pesanan dikirim bertahap, atau ada jeda antara pesan dan kirim</td></tr>
-        </tbody>
-      </table>
-      <p class="note">Pilihan ini tidak bisa diubah setelah SO dibuat — pastikan pilih sesuai proses bisnis sebelum Confirm.</p>
-      <ol>
-        <li><strong>Sale Order</strong> — pilih customer, gudang, centang <code>use_do</code> sesuai kebutuhan, isi produk+qty+harga jual, lalu <em>Confirm</em>. <NuxtLink to="/sales/orders">Buka Sale Orders →</NuxtLink></li>
-        <li><strong>Delivery Order</strong> — hanya untuk SO dengan use_do=ya. Pilih SO, isi qty yang benar-benar dikirim, lalu <em>Approve</em> — ini yang memicu stok keluar. <NuxtLink to="/sales/deliveries">Buka Delivery Orders →</NuxtLink></li>
-        <li><strong>Sale Return</strong> — retur dari SO (use_do=tidak) atau DO (use_do=ya). Kondisi "Baik" akan mengembalikan barang ke stok (pakai HPP asli saat keluar); kondisi "Rusak" hanya dicatat, tidak menambah stok. <NuxtLink to="/sales/returns">Buka Sale Returns →</NuxtLink></li>
       </ol>
     </section>
 
@@ -125,7 +110,7 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
       <p>
         Dokumen yang menunggu persetujuan Anda (sesuai role/user yang terdaftar sebagai approver di step aktif) muncul di
         <NuxtLink to="/approval/inbox">Approval Inbox</NuxtLink>. Klik Approve atau Reject (boleh tambah catatan).
-        Ingat: hanya PO, Receiving, Purchase Return, dan Stock Adjustment yang lewat alur ini — SO/DO/Transfer/Sale Return
+        Ingat: hanya PO, Receiving, Purchase Return, dan Stock Adjustment yang lewat alur ini — Transfer
         diproses langsung dari halamannya masing-masing.
       </p>
       <h2>Notifikasi</h2>
@@ -145,7 +130,7 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
         <li><strong>Stock Value Overview</strong> — total nilai &amp; qty stok, per gudang.</li>
         <li><strong>Aging Summary</strong> — sebaran umur stok (donut chart): 0-30, 31-60, 61-90, 90+ hari.</li>
         <li><strong>Movement Classification</strong> — jumlah produk per kategori pergerakan: fast/normal/slow/dead.</li>
-        <li><strong>Purchase vs Sale Trend</strong> — grafik garis nilai pembelian vs penjualan per hari.</li>
+        <li><strong>Purchase Trend</strong> — grafik garis nilai pembelian per hari.</li>
         <li><strong>Pending Approvals</strong> — dokumen yang menunggu persetujuan Anda (ringkasan dari Approval Inbox).</li>
         <li><strong>Low Stock Alert</strong> — produk yang sudah di/bawah titik reorder atau stok minimum.</li>
       </ul>
@@ -154,8 +139,8 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
         <NuxtLink to="/dashboard/stock-aging-projection">Stock Aging &amp; Projection →</NuxtLink>.
       </p>
       <h2>Reports</h2>
-      <p>4 tab laporan, semua bisa difilter periode/gudang/produk: <strong>Purchase</strong> (PO outstanding + riwayat harga),
-        <strong>Sale</strong> (revenue/COGS/margin), <strong>Inventory Valuation</strong> (butuh job harian sudah pernah jalan minimal sekali),
+      <p>3 tab laporan, semua bisa difilter periode/gudang/produk: <strong>Purchase</strong> (PO outstanding + riwayat harga),
+        <strong>Inventory Valuation</strong> (butuh job harian sudah pernah jalan minimal sekali),
         dan <strong>Mutation/Kartu Stok</strong> (riwayat keluar-masuk per produk).
         <NuxtLink to="/reports">Buka Reports →</NuxtLink>
       </p>
@@ -176,8 +161,8 @@ const tab = ref<'mulai' | 'purchase' | 'sale' | 'stock' | 'approval' | 'dashboar
       </p>
       <p class="note">
         ⚠️ Saat ini hanya PO, Receiving, Purchase Return, dan Stock Adjustment yang benar-benar memicu approval instance dari
-        halaman transaksinya. Membuat workflow untuk jenis dokumen Sale Order/Delivery Order/Stock Transfer/Sale Return tidak
-        akan pernah terpakai — dokumen-dokumen itu diproses langsung tanpa approval, ini keputusan desain, bukan bug.
+        halaman transaksinya. Membuat workflow untuk jenis dokumen Stock Transfer tidak
+        akan pernah terpakai — dokumen itu diproses langsung tanpa approval, ini keputusan desain, bukan bug.
       </p>
       <h2>Notification Rules</h2>
       <p>

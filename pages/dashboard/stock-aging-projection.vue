@@ -78,7 +78,7 @@ const pagedRows = computed(() => sortedRows.value.slice((page.value - 1) * pageS
 const columns = [
   { key: 'product_id', label: 'Product' },
   { key: 'warehouse_id', label: 'Warehouse' },
-  { key: 'qty_on_hand', label: 'Qty On Hand', sortable: true, align: 'right' as const },
+  { key: 'qty_on_hand', label: 'Qty On Hand', sortable: true, type: 'qty' as const, align: 'right' as const },
   { key: 'oldest_layer_age_days', label: 'Umur Layer Tertua (hari)', sortable: true, align: 'right' as const },
   { key: 'avg_daily_out_qty_30d', label: 'Avg Out/Hari (30d)', sortable: true, align: 'right' as const },
   { key: 'projected_days_to_zero', label: 'Proyeksi Habis' },

@@ -9,7 +9,7 @@ interface Instance {
   created_at: string
 }
 
-const DOCUMENT_TYPES = ['po', 'receiving', 'purchase_return', 'so', 'do', 'sale_return', 'adjustment', 'transfer']
+const DOCUMENT_TYPES = ['product_request', 'po', 'receiving', 'purchase_return', 'adjustment', 'transfer']
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'approved', label: 'Approved' },

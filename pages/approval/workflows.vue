@@ -11,8 +11,8 @@ interface User { id: string; name: string; email: string }
 interface Step { id: string; step_order: number; approver_type: 'role' | 'user'; approver_id: string }
 interface Workflow { id: string; document_type: string; name: string; is_active: boolean; steps: Step[] }
 
-const DOCUMENT_TYPES = ['po', 'receiving', 'purchase_return', 'so', 'do', 'sale_return', 'adjustment', 'transfer']
-const NO_TRIGGER_TYPES = new Set(['so', 'do', 'sale_return', 'transfer'])
+const DOCUMENT_TYPES = ['product_request', 'po', 'receiving', 'purchase_return', 'adjustment', 'transfer']
+const NO_TRIGGER_TYPES = new Set(['transfer'])
 
 const workflows = ref<Workflow[]>([])
 const roles = ref<Role[]>([])

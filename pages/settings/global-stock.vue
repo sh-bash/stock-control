@@ -51,26 +51,11 @@ onMounted(load)
     <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
     <p v-if="savedMsg" class="success">{{ savedMsg }}</p>
     <form v-if="!loading" class="settings-form" @submit.prevent="save">
-      <label>
-        Fast Moving Min Daily Out
-        <input v-model.number="form.fast_moving_min_daily_out" type="number" step="any" required />
-      </label>
-      <label>
-        Slow Moving Max Daily Out
-        <input v-model.number="form.slow_moving_max_daily_out" type="number" step="any" required />
-      </label>
-      <label>
-        Aging Warning Days
-        <input v-model.number="form.aging_warning_days" type="number" required />
-      </label>
-      <label>
-        Aging Danger Days
-        <input v-model.number="form.aging_danger_days" type="number" required />
-      </label>
-      <label>
-        Dead Stock No Movement Days
-        <input v-model.number="form.dead_stock_no_movement_days" type="number" required />
-      </label>
+      <BaseNumberInput v-model="form.fast_moving_min_daily_out" label="Fast Moving Min Daily Out" required />
+      <BaseNumberInput v-model="form.slow_moving_max_daily_out" label="Slow Moving Max Daily Out" required />
+      <BaseNumberInput v-model="form.aging_warning_days" label="Aging Warning Days" :decimals="0" required />
+      <BaseNumberInput v-model="form.aging_danger_days" label="Aging Danger Days" :decimals="0" required />
+      <BaseNumberInput v-model="form.dead_stock_no_movement_days" label="Dead Stock No Movement Days" :decimals="0" required />
       <button type="submit">Simpan</button>
     </form>
   </div>

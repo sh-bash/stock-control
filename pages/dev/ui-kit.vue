@@ -63,10 +63,6 @@ function subtotal(item: LineItem) {
   return (item.qty ?? 0) * (item.price ?? 0)
 }
 const grandTotal = computed(() => items.value.reduce((sum, i) => sum + subtotal(i), 0))
-function fmtCurrency(n: number) {
-  return new Intl.NumberFormat('id-ID').format(n)
-}
-
 // --- BaseDataTable demo (dummy server-side pagination simulated client-side) ---
 interface DemoRow { id: number; sku: string; name: string; category: string; status: string; qty: number }
 const allRows: DemoRow[] = Array.from({ length: 57 }, (_, i) => ({
@@ -89,7 +85,7 @@ const tableColumns = [
       { value: 'ATK', label: 'ATK' },
     ],
   },
-  { key: 'qty', label: 'Qty', sortable: true, align: 'right' as const },
+  { key: 'qty', label: 'Qty', sortable: true, type: 'qty' as const, align: 'right' as const },
   { key: 'status', label: 'Status' },
 ]
 const tablePage = ref(1)
@@ -207,8 +203,8 @@ function confirmDelete() {
       <div class="form-grid">
         <BaseInput v-model="form.name" label="Nama Produk" required placeholder="Contoh: Kabel HDMI 2m" :error="formErrors.name" />
         <BaseSelect v-model="form.category" label="Kategori" :options="categoryOptions" helper-text="Contoh BaseSelect" />
-        <BaseNumberInput v-model="form.qty" label="Qty" required placeholder="0" :error="formErrors.qty" helper-text="Tidak boleh negatif (default)" />
-        <BaseNumberInput v-model="form.qtyDiff" label="Qty Diff (boleh negatif)" allow-negative placeholder="mis. -5" />
+        <BaseNumberInput v-model="form.qty" decimals="auto" label="Qty" required placeholder="0" :error="formErrors.qty" helper-text="Tidak boleh negatif (default)" />
+        <BaseNumberInput v-model="form.qtyDiff" decimals="auto" label="Qty Diff (boleh negatif)" allow-negative placeholder="mis. -5" />
         <BaseDatePicker v-model="form.date" label="Tanggal" />
         <BaseTextarea v-model="form.note" label="Catatan" placeholder="Opsional" :rows="2" />
       </div>
@@ -225,14 +221,14 @@ function confirmDelete() {
         <tbody>
           <tr v-for="item in items" :key="item.id">
             <td><BaseInput v-model="item.product" placeholder="Nama produk" /></td>
-            <td class="col-narrow"><BaseNumberInput v-model="item.qty" placeholder="0" /></td>
+            <td class="col-narrow"><BaseNumberInput v-model="item.qty" decimals="auto" placeholder="0" /></td>
             <td class="col-narrow"><BaseNumberInput v-model="item.price" placeholder="0" /></td>
-            <td class="col-narrow subtotal-cell">Rp {{ fmtCurrency(subtotal(item)) }}</td>
+            <td class="col-narrow subtotal-cell">Rp {{ formatNumber(subtotal(item)) }}</td>
             <td><BaseButton variant="ghost" size="sm" @click="removeItem(item.id)">Hapus</BaseButton></td>
           </tr>
         </tbody>
         <tfoot>
-          <tr><td colspan="3" class="total-label">Total</td><td colspan="2" class="total-value">Rp {{ fmtCurrency(grandTotal) }}</td></tr>
+          <tr><td colspan="3" class="total-label">Total</td><td colspan="2" class="total-value">Rp {{ formatNumber(grandTotal) }}</td></tr>
         </tfoot>
       </table>
       <BaseButton variant="secondary" size="sm" style="margin-top: 8px" @click="addItem">+ Tambah Baris</BaseButton>
@@ -312,7 +308,7 @@ function confirmDelete() {
           <BaseBadge :status="value" />
         </template>
         <template #cell-qty="{ value }">
-          {{ fmtCurrency(value) }}
+          {{ formatNumber(value) }}
         </template>
         <template #actions="{ row }">
           <BaseButton variant="ghost" size="sm">Detail</BaseButton>

@@ -10,6 +10,8 @@ export interface BaseTableColumn {
   label: string
   sortable?: boolean
   align?: 'left' | 'right' | 'center'
+  // 'number' -> 2 decimals, 'qty' -> up to 4 (trimmed), 'int' -> none; both with thousands separator, right-aligned
+  type?: 'number' | 'qty' | 'int'
   width?: string
   filterOptions?: readonly { value: string; label: string }[]
 }
@@ -79,6 +81,17 @@ function onFilterChange(key: string, value: string) {
   emit('filter-change', { key, value })
 }
 
+function alignClass(col: BaseTableColumn) {
+  const align = col.align ?? (col.type ? 'right' : '')
+  return align ? `align-${align}` : ''
+}
+function renderCell(col: BaseTableColumn, value: unknown) {
+  if (col.type === 'number') return formatNumber(value)
+  if (col.type === 'qty') return formatQty(value)
+  if (col.type === 'int') return formatInt(value)
+  return value
+}
+
 const showPagination = computed(() => props.totalRows > 0 && props.pageSize > 0)
 const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
 </script>
@@ -87,16 +100,15 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
   <div class="base-table-wrapper">
     <div v-if="searchable || $slots['toolbar-actions'] || filterColumns.length > 0" class="table-toolbar">
       <input v-if="searchable" v-model="searchText" class="table-search" type="text" :placeholder="searchPlaceholder" />
-      <select
+      <BaseSearchableSelect
         v-for="col in filterColumns"
         :key="col.key"
         class="table-filter"
-        :value="filterValues[col.key] ?? ''"
-        @change="onFilterChange(col.key, ($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">{{ col.label }}: Semua</option>
-        <option v-for="opt in col.filterOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-      </select>
+        :model-value="filterValues[col.key] ?? ''"
+        :options="col.filterOptions ?? []"
+        :placeholder="`${col.label}: Semua`"
+        @update:model-value="(v) => onFilterChange(col.key, v)"
+      />
       <div class="toolbar-spacer" />
       <slot name="toolbar-actions" />
     </div>
@@ -108,7 +120,7 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
             <th
               v-for="col in columns"
               :key="col.key"
-              :class="[col.align ? `align-${col.align}` : '', { sortable: col.sortable }]"
+              :class="[alignClass(col), { sortable: col.sortable }]"
               :style="col.width ? { width: col.width } : {}"
               @click="onSortClick(col)"
             >
@@ -131,8 +143,8 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
           </template>
           <template v-else-if="data.length > 0">
             <tr v-for="row in data" :key="row[rowKey]">
-              <td v-for="col in columns" :key="col.key" :class="col.align ? `align-${col.align}` : ''">
-                <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">{{ row[col.key] }}</slot>
+              <td v-for="col in columns" :key="col.key" :class="alignClass(col)">
+                <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">{{ renderCell(col, row[col.key]) }}</slot>
               </td>
               <td v-if="$slots.actions" class="align-right row-actions">
                 <slot name="actions" :row="row" />
@@ -188,10 +200,7 @@ const skeletonRows = computed(() => Math.min(props.pageSize || 5, 8))
   flex-shrink: 0;
 }
 .table-filter {
-  padding: 8px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  min-width: 180px;
 }
 .toolbar-spacer {
   flex: 1;

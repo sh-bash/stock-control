@@ -869,3 +869,19 @@ FUNCTION createNotification(type, severity, product_id, warehouse_id, ...):
 ---
 
 *Instruksi untuk Claude CLI: eksekusi Fase 1 terlebih dahulu, tunggu review, baru lanjut Fase berikutnya. Jangan skip acceptance criteria. Rujuk §5 untuk struktur kolom, §6 untuk logic bisnis, jangan mengasumsikan struktur di luar yang tertulis di sini.*
+
+---
+
+## Addendum — Perubahan alur (Oktober 2026)
+
+Dokumen di atas menggambarkan versi awal. Perubahan yang berlaku sekarang:
+
+- **Modul Sales dihapus** (Sale Order, Delivery Order, Sale Return, Customers, price levels, report Sale). §5.3 dan §6.4 tidak berlaku lagi.
+- **Alur pembelian baru:** Product Request → Product Comparison → Purchase Order → Shipment → Receiving → Purchase Return.
+  - *Product Request*: flag `needs_approval` per request; bila false, submit langsung `approved`.
+  - *Product Comparison*: ≥2 kandidat per item request (harga RMB/IDR, supplier, berat, dimensi produk & kemasan, foto, catatan), skor & rekomendasi (harga, berat, volume kemasan, lead time). Kandidat terpilih dapat dipromosikan ke master product.
+  - *PO*: dapat dibuat dari Request/Comparison; mata uang RMB/IDR dengan kurs manual per PO; `unit_price` selalu tersimpan dalam IDR.
+  - *Shipment*: berat per item, `total_weight`, resi, ETA, status `draft → in_transit → arrived → completed`.
+  - *Purchase Return*: menampilkan peringatan dari komentar bertanda masalah pada Request, PO, dan Receiving terkait.
+- **Import Stock** (Excel/CSV): produk tanpa riwayat stok → saldo awal (`opening_balance`); selisih → `import_adjust_in` / `import_adjust_out` di ledger.
+- **UI:** semua CRUD transaksi memakai halaman terpisah (list / new / detail / edit); modal hanya untuk Master Data.

@@ -3,10 +3,6 @@ import { db } from '../db/client'
 import {
   purchaseOrders,
   purchaseOrderItems,
-  saleOrders,
-  saleOrderItems,
-  deliveryOrders,
-  deliveryOrderItems,
   stockLedger,
   products,
 } from '../db/schema'
@@ -48,11 +44,14 @@ export function listOutstandingPurchaseOrders(filters: {
       warehouse_id: purchaseOrders.warehouse_id,
       order_date: purchaseOrders.order_date,
       status: purchaseOrders.status,
+      currency: purchaseOrders.currency,
+      exchange_rate: purchaseOrders.exchange_rate,
       item_id: purchaseOrderItems.id,
       product_id: purchaseOrderItems.product_id,
       qty_order: purchaseOrderItems.qty_order,
       qty_received: purchaseOrderItems.qty_received,
       unit_price: purchaseOrderItems.unit_price,
+      price_foreign: purchaseOrderItems.price_foreign,
       remaining: sql<string>`${purchaseOrderItems.qty_order} - ${purchaseOrderItems.qty_received}`,
     })
     .from(purchaseOrderItems)
@@ -82,7 +81,10 @@ export function listPurchasePriceHistory(filters: {
       no_po: purchaseOrders.no_po,
       supplier_id: purchaseOrders.supplier_id,
       order_date: purchaseOrders.order_date,
+      currency: purchaseOrders.currency,
+      exchange_rate: purchaseOrders.exchange_rate,
       unit_price: purchaseOrderItems.unit_price,
+      price_foreign: purchaseOrderItems.price_foreign,
       qty_order: purchaseOrderItems.qty_order,
     })
     .from(purchaseOrderItems)
@@ -90,95 +92,6 @@ export function listPurchasePriceHistory(filters: {
     .orderBy(asc(purchaseOrders.order_date))
 
   return conditions.length > 0 ? query.where(and(...conditions)) : query
-}
-
-// ============================================================
-// Sale report — §6.4: use_do=false sells are recorded on the
-// stock_ledger's 'delivery' entry (reference_type='so'); use_do=true sells
-// are recorded per delivery_order_item once its DO is approved
-// (cogs_per_unit already stored there). Both are read separately and
-// merged by the service layer into one revenue/COGS/margin report.
-// ============================================================
-
-export function listDirectSaleLines(filters: {
-  customerId?: string
-  warehouseId?: string
-  productId?: string
-  dateFrom?: string
-  dateTo?: string
-  productIds?: string[]
-}) {
-  const conditions = [eq(saleOrders.use_do, false), eq(saleOrders.status, 'closed')]
-  if (filters.customerId) conditions.push(eq(saleOrders.customer_id, filters.customerId))
-  if (filters.warehouseId) conditions.push(eq(saleOrders.warehouse_id, filters.warehouseId))
-  if (filters.productId) conditions.push(eq(saleOrderItems.product_id, filters.productId))
-  if (filters.productIds) conditions.push(inArray(saleOrderItems.product_id, filters.productIds))
-  if (filters.dateFrom) conditions.push(gte(saleOrders.order_date, filters.dateFrom))
-  if (filters.dateTo) conditions.push(lte(saleOrders.order_date, filters.dateTo))
-
-  return db
-    .select({
-      so_id: saleOrders.id,
-      no_so: saleOrders.no_so,
-      customer_id: saleOrders.customer_id,
-      warehouse_id: saleOrders.warehouse_id,
-      order_date: saleOrders.order_date,
-      product_id: saleOrderItems.product_id,
-      qty: saleOrderItems.qty_delivered,
-      sell_price: saleOrderItems.sell_price,
-      cogs_per_unit: stockLedger.hpp_used,
-    })
-    .from(saleOrderItems)
-    .innerJoin(saleOrders, eq(saleOrderItems.so_id, saleOrders.id))
-    .leftJoin(
-      stockLedger,
-      and(
-        eq(stockLedger.reference_type, 'so'),
-        eq(stockLedger.reference_id, saleOrders.id),
-        eq(stockLedger.product_id, saleOrderItems.product_id),
-        eq(stockLedger.transaction_type, 'delivery'),
-      ),
-    )
-    .where(and(...conditions))
-    .orderBy(desc(saleOrders.order_date))
-}
-
-export function listDeliveryOrderSaleLines(filters: {
-  customerId?: string
-  warehouseId?: string
-  productId?: string
-  dateFrom?: string
-  dateTo?: string
-  productIds?: string[]
-}) {
-  const conditions = [eq(deliveryOrders.status, 'approved')]
-  if (filters.customerId) conditions.push(eq(saleOrders.customer_id, filters.customerId))
-  if (filters.warehouseId) conditions.push(eq(deliveryOrders.warehouse_id, filters.warehouseId))
-  if (filters.productId) conditions.push(eq(deliveryOrderItems.product_id, filters.productId))
-  if (filters.productIds) conditions.push(inArray(deliveryOrderItems.product_id, filters.productIds))
-  if (filters.dateFrom) conditions.push(gte(deliveryOrders.delivery_date, filters.dateFrom))
-  if (filters.dateTo) conditions.push(lte(deliveryOrders.delivery_date, filters.dateTo))
-
-  return db
-    .select({
-      so_id: saleOrders.id,
-      no_so: saleOrders.no_so,
-      do_id: deliveryOrders.id,
-      no_do: deliveryOrders.no_do,
-      customer_id: saleOrders.customer_id,
-      warehouse_id: deliveryOrders.warehouse_id,
-      order_date: deliveryOrders.delivery_date,
-      product_id: deliveryOrderItems.product_id,
-      qty: deliveryOrderItems.qty_delivered,
-      sell_price: saleOrderItems.sell_price,
-      cogs_per_unit: deliveryOrderItems.cogs_per_unit,
-    })
-    .from(deliveryOrderItems)
-    .innerJoin(deliveryOrders, eq(deliveryOrderItems.do_id, deliveryOrders.id))
-    .innerJoin(saleOrders, eq(deliveryOrders.so_id, saleOrders.id))
-    .innerJoin(saleOrderItems, eq(deliveryOrderItems.so_item_id, saleOrderItems.id))
-    .where(and(...conditions))
-    .orderBy(desc(deliveryOrders.delivery_date))
 }
 
 // ============================================================

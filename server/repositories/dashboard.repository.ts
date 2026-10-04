@@ -88,7 +88,7 @@ export function listStockSummaryForLowStockCheck(warehouseId?: string) {
 }
 
 // ============================================================
-// Purchase vs Sale Trend — per the user's confirmed decision: read
+// Purchase Trend — per the user's confirmed decision: read
 // stock_ledger directly (no dedicated daily-trend materialized table
 // exists), filtered on transaction_date (part of the Fase 3 composite
 // index) and grouped by day.
@@ -105,8 +105,6 @@ export function getPurchaseSaleTrend(filters: { dateFrom: string; dateTo: string
       day: sql<string>`DATE(${stockLedger.transaction_date})`,
       purchase_qty: sql<string>`COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'receiving' THEN ${stockLedger.qty_in} ELSE 0 END), 0)`,
       purchase_value: sql<string>`COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'receiving' THEN ${stockLedger.qty_in} * ${stockLedger.hpp_used} ELSE 0 END), 0)`,
-      sale_qty: sql<string>`COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'delivery' THEN ${stockLedger.qty_out} ELSE 0 END), 0)`,
-      sale_value: sql<string>`COALESCE(SUM(CASE WHEN ${stockLedger.transaction_type} = 'delivery' THEN ${stockLedger.qty_out} * ${stockLedger.hpp_used} ELSE 0 END), 0)`,
     })
     .from(stockLedger)
     .where(and(...conditions))

@@ -17,9 +17,7 @@ const CONDITION_OPTIONS = [
 
 const TRANSACTION_TYPE_OPTIONS = [
   { value: 'receiving', label: 'Receiving' },
-  { value: 'delivery', label: 'Delivery' },
   { value: 'purchase_return', label: 'Purchase Return' },
-  { value: 'sale_return', label: 'Sale Return' },
   { value: 'transfer_in', label: 'Transfer In' },
   { value: 'transfer_out', label: 'Transfer Out' },
   { value: 'adjustment', label: 'Adjustment' },
@@ -51,10 +49,10 @@ const summarySort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key
 const summaryColumns = computed(() => [
   { key: 'product_id', label: 'Product' },
   { key: 'warehouse_id', label: 'Warehouse' },
-  { key: 'qty_on_hand', label: 'Qty On Hand', sortable: true, align: 'right' as const },
-  { key: 'qty_reserved', label: 'Qty Reserved', sortable: true, align: 'right' as const },
-  { key: 'qty_available', label: 'Qty Available', align: 'right' as const },
-  { key: 'total_value', label: 'Total Value', sortable: true, align: 'right' as const },
+  { key: 'qty_on_hand', label: 'Qty On Hand', sortable: true, type: 'qty' as const, align: 'right' as const },
+  { key: 'qty_reserved', label: 'Qty Reserved', sortable: true, type: 'qty' as const, align: 'right' as const },
+  { key: 'qty_available', label: 'Qty Available', type: 'qty' as const, align: 'right' as const },
+  { key: 'total_value', label: 'Total Value', sortable: true, type: 'number' as const, align: 'right' as const },
 ])
 
 const {
@@ -127,9 +125,9 @@ const layerColumns = computed(() => [
   { key: 'product_id', label: 'Product' },
   { key: 'warehouse_id', label: 'Warehouse', filterOptions: warehouseOptions() },
   { key: 'receive_date', label: 'Receive Date', sortable: true },
-  { key: 'qty_original', label: 'Qty Original', sortable: true, align: 'right' as const },
-  { key: 'qty_remaining', label: 'Qty Remaining', sortable: true, align: 'right' as const },
-  { key: 'hpp', label: 'HPP', sortable: true, align: 'right' as const },
+  { key: 'qty_original', label: 'Qty Original', sortable: true, type: 'qty' as const, align: 'right' as const },
+  { key: 'qty_remaining', label: 'Qty Remaining', sortable: true, type: 'qty' as const, align: 'right' as const },
+  { key: 'hpp', label: 'HPP', sortable: true, type: 'number' as const, align: 'right' as const },
   {
     key: 'status',
     label: 'Status',
@@ -188,11 +186,11 @@ const ledgerColumns = computed(() => [
   { key: 'warehouse_id', label: 'Warehouse' },
   { key: 'transaction_type', label: 'Type' },
   { key: 'transaction_date', label: 'Date', sortable: true },
-  { key: 'qty_in', label: 'Qty In', align: 'right' as const },
-  { key: 'qty_out', label: 'Qty Out', align: 'right' as const },
-  { key: 'hpp_used', label: 'HPP Used', align: 'right' as const },
-  { key: 'running_balance_qty', label: 'Balance Qty', align: 'right' as const },
-  { key: 'running_balance_value', label: 'Balance Value', align: 'right' as const },
+  { key: 'qty_in', label: 'Qty In', type: 'qty' as const, align: 'right' as const },
+  { key: 'qty_out', label: 'Qty Out', type: 'qty' as const, align: 'right' as const },
+  { key: 'hpp_used', label: 'HPP Used', type: 'number' as const, align: 'right' as const },
+  { key: 'running_balance_qty', label: 'Balance Qty', type: 'qty' as const, align: 'right' as const },
+  { key: 'running_balance_value', label: 'Balance Value', type: 'number' as const, align: 'right' as const },
 ])
 
 const {
@@ -443,7 +441,7 @@ onMounted(async () => {
       <template #cell-product_id="{ value }">{{ productLabel(value) }}</template>
       <template #cell-warehouse_id="{ value }">{{ warehouseName(value) }}</template>
       <template #cell-transaction_date="{ value }">{{ new Date(value).toLocaleString() }}</template>
-      <template #cell-hpp_used="{ value }">{{ value ?? '-' }}</template>
+      <template #cell-hpp_used="{ value }">{{ formatNumber(value) }}</template>
       </BaseDataTable>
     </template>
   </div>

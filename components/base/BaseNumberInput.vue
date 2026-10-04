@@ -16,6 +16,7 @@ const props = withDefaults(
     min?: number
     max?: number
     step?: number | 'any'
+    decimals?: number | 'auto'
   }>(),
   {
     label: '',
@@ -28,6 +29,7 @@ const props = withDefaults(
     min: undefined,
     max: undefined,
     step: 'any',
+    decimals: 2,
   },
 )
 
@@ -47,7 +49,7 @@ watch(
 const displayValue = computed(() => {
   if (focused.value) return rawText.value
   if (props.modelValue == null || Number.isNaN(props.modelValue)) return ''
-  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(props.modelValue)
+  return props.decimals === 'auto' ? formatQty(props.modelValue) : formatNumber(props.modelValue, props.decimals)
 })
 
 function onFocus() {

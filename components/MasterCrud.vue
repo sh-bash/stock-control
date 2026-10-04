@@ -12,6 +12,8 @@ interface FieldConfig {
   type?: 'text' | 'number' | 'checkbox' | 'select'
   options?: readonly { value: string; label: string }[]
   required?: boolean
+  // Editable in the form but left out of the list table (keeps wide masters readable).
+  listHidden?: boolean
 }
 
 const props = defineProps<{
@@ -33,7 +35,7 @@ const statusFilter = ref('')
 const sort = ref<{ key: string; direction: 'asc' | 'desc' | null }>({ key: '', direction: null })
 
 const columns = computed(() => {
-  const cols = props.fields.map((f) => ({ key: f.key, label: f.label, sortable: true }))
+  const cols = props.fields.filter((f) => !f.listHidden).map((f) => ({ key: f.key, label: f.label, sortable: true }))
   if (hasStatusColumn.value) {
     cols.push({
       key: 'is_active',
@@ -116,7 +118,11 @@ function startCreate() {
 function startEdit(row: any) {
   editingId.value = row.id
   const obj: Record<string, any> = {}
-  for (const f of props.fields) obj[f.key] = row[f.key] ?? (f.type === 'checkbox' ? true : f.type === 'number' ? null : '')
+  for (const f of props.fields) {
+    const raw = row[f.key]
+    // decimal columns arrive as strings ("1.500") — number inputs need real numbers
+    obj[f.key] = f.type === 'number' ? (raw == null || raw === '' ? null : Number(raw)) : (raw ?? (f.type === 'checkbox' ? true : ''))
+  }
   form.value = obj
   formErrors.value = {}
   showModal.value = true

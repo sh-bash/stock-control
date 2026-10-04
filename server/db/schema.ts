@@ -12,6 +12,7 @@ import {
   unique,
   uniqueIndex,
   primaryKey,
+  jsonb,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -55,6 +56,16 @@ export const products = pgTable('products', {
   base_unit_id: uuid('base_unit_id').references(() => units.id),
   costing_method: varchar('costing_method', { length: 10 }).notNull().default('fifo'),
   is_active: boolean('is_active').notNull().default(true),
+  // Physical specs — filled when a product is promoted from a Product Comparison
+  // candidate (see comparison_candidates), or edited manually on the master page.
+  weight_kg: decimal('weight_kg', { precision: 12, scale: 3 }),
+  length_cm: decimal('length_cm', { precision: 10, scale: 2 }),
+  width_cm: decimal('width_cm', { precision: 10, scale: 2 }),
+  height_cm: decimal('height_cm', { precision: 10, scale: 2 }),
+  pack_length_cm: decimal('pack_length_cm', { precision: 10, scale: 2 }),
+  pack_width_cm: decimal('pack_width_cm', { precision: 10, scale: 2 }),
+  pack_height_cm: decimal('pack_height_cm', { precision: 10, scale: 2 }),
+  notes: text('notes'),
   ...timestamps,
 })
 
@@ -73,23 +84,6 @@ export const suppliers = pgTable('suppliers', {
   phone: varchar('phone', { length: 30 }),
   payment_term_days: integer('payment_term_days').notNull().default(0),
   default_lead_time_days: integer('default_lead_time_days').notNull().default(0),
-  is_active: boolean('is_active').notNull().default(true),
-  ...timestamps,
-})
-
-export const priceLevels = pgTable('price_levels', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 100 }).notNull(),
-  ...timestamps,
-})
-
-export const customers = pgTable('customers', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: varchar('name', { length: 150 }).notNull(),
-  contact: varchar('contact', { length: 100 }),
-  phone: varchar('phone', { length: 30 }),
-  payment_term_days: integer('payment_term_days').notNull().default(0),
-  price_level_id: uuid('price_level_id').references(() => priceLevels.id),
   is_active: boolean('is_active').notNull().default(true),
   ...timestamps,
 })
@@ -280,6 +274,110 @@ export const notificationSettings = pgTable('notification_settings', {
 })
 
 // ============================================================
+// §5.2a Product Request → Product Comparison
+// ============================================================
+
+// status: draft | waiting_approval | approved | rejected | comparing | ordered | closed
+// needs_approval=false requests skip the approval engine and go draft → approved on submit.
+export const productRequests = pgTable('product_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_request: varchar('no_request', { length: 50 }).notNull().unique(),
+  title: varchar('title', { length: 200 }).notNull(),
+  notes: text('notes'),
+  needed_date: date('needed_date'),
+  needs_approval: boolean('needs_approval').notNull().default(true),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  requested_by: uuid('requested_by').notNull().references(() => users.id),
+  ...timestamps,
+})
+
+export const productRequestItems = pgTable('product_request_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  request_id: uuid('request_id').notNull().references(() => productRequests.id),
+  // Set when the requested item already exists in the product master.
+  product_id: uuid('product_id').references(() => products.id),
+  name: varchar('name', { length: 200 }).notNull(),
+  spec: text('spec'),
+  qty: decimal('qty', { precision: 18, scale: 4 }).notNull(),
+  unit: varchar('unit', { length: 30 }),
+  notes: text('notes'),
+  ...timestamps,
+})
+
+// status: draft | in_review | decided | closed
+// weights = JSON { price, weight, volume, lead_time } used by the analysis score.
+export const productComparisons = pgTable('product_comparisons', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  no_comparison: varchar('no_comparison', { length: 50 }).notNull().unique(),
+  request_id: uuid('request_id').notNull().references(() => productRequests.id),
+  title: varchar('title', { length: 200 }).notNull(),
+  notes: text('notes'),
+  // RMB → IDR rate used to normalise candidate prices for comparison.
+  exchange_rate: decimal('exchange_rate', { precision: 18, scale: 4 }).notNull().default('1'),
+  weights: jsonb('weights'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  created_by: uuid('created_by').notNull().references(() => users.id),
+  ...timestamps,
+})
+
+export const comparisonCandidates = pgTable('comparison_candidates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  comparison_id: uuid('comparison_id').notNull().references(() => productComparisons.id),
+  request_item_id: uuid('request_item_id').references(() => productRequestItems.id),
+  supplier_id: uuid('supplier_id').references(() => suppliers.id),
+  name: varchar('name', { length: 200 }).notNull(),
+  price: decimal('price', { precision: 18, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('RMB'), // RMB | IDR
+  moq: decimal('moq', { precision: 18, scale: 4 }),
+  lead_time_days: integer('lead_time_days'),
+  weight_kg: decimal('weight_kg', { precision: 12, scale: 3 }),
+  length_cm: decimal('length_cm', { precision: 10, scale: 2 }),
+  width_cm: decimal('width_cm', { precision: 10, scale: 2 }),
+  height_cm: decimal('height_cm', { precision: 10, scale: 2 }),
+  pack_length_cm: decimal('pack_length_cm', { precision: 10, scale: 2 }),
+  pack_width_cm: decimal('pack_width_cm', { precision: 10, scale: 2 }),
+  pack_height_cm: decimal('pack_height_cm', { precision: 10, scale: 2 }),
+  notes: text('notes'),
+  is_selected: boolean('is_selected').notNull().default(false),
+  // Set once a selected candidate has been pushed to the product master.
+  promoted_product_id: uuid('promoted_product_id').references(() => products.id),
+  ...timestamps,
+})
+
+// Generic file attachments (candidate photos, etc.), stored on local disk under uploads/.
+export const attachments = pgTable(
+  'attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    owner_type: varchar('owner_type', { length: 30 }).notNull(), // 'candidate' | 'request' | 'product' | ...
+    owner_id: uuid('owner_id').notNull(),
+    path: varchar('path', { length: 300 }).notNull(),
+    file_name: varchar('file_name', { length: 200 }),
+    mime: varchar('mime', { length: 100 }).notNull(),
+    size: integer('size').notNull(),
+    created_by: uuid('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [index('attachments_owner_idx').on(table.owner_type, table.owner_id)],
+)
+
+// Per-document discussion. is_issue=true marks a problem report that gets surfaced
+// as a warning on Purchase Return (request / PO / receiving chain).
+export const documentComments = pgTable(
+  'document_comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ref_type: varchar('ref_type', { length: 30 }).notNull(), // 'request' | 'po' | 'receiving'
+    ref_id: uuid('ref_id').notNull(),
+    user_id: uuid('user_id').notNull().references(() => users.id),
+    message: text('message').notNull(),
+    is_issue: boolean('is_issue').notNull().default(false),
+    ...timestamps,
+  },
+  (table) => [index('document_comments_ref_idx').on(table.ref_type, table.ref_id)],
+)
+
+// ============================================================
 // §5.2 Purchase
 // ============================================================
 
@@ -290,6 +388,14 @@ export const purchaseOrders = pgTable('purchase_orders', {
   warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
   order_date: date('order_date').notNull(),
   status: varchar('status', { length: 30 }).notNull().default('draft'),
+  request_id: uuid('request_id').references(() => productRequests.id),
+  comparison_id: uuid('comparison_id').references(() => productComparisons.id),
+  // Order currency + rate snapshot. Item unit_price is ALWAYS stored in IDR
+  // (= price_foreign × exchange_rate when currency is RMB), so receiving/HPP
+  // logic keeps working in IDR unchanged.
+  currency: varchar('currency', { length: 3 }).notNull().default('IDR'),
+  exchange_rate: decimal('exchange_rate', { precision: 18, scale: 4 }).notNull().default('1'),
+  notes: text('notes'),
   created_by: uuid('created_by').notNull().references(() => users.id),
   ...timestamps,
 })
@@ -298,7 +404,10 @@ export const purchaseOrderItems = pgTable('purchase_order_items', {
   id: uuid('id').primaryKey().defaultRandom(),
   po_id: uuid('po_id').notNull().references(() => purchaseOrders.id),
   product_id: uuid('product_id').notNull().references(() => products.id),
+  candidate_id: uuid('candidate_id').references(() => comparisonCandidates.id),
   qty_order: decimal('qty_order', { precision: 18, scale: 4 }).notNull(),
+  // Price in the PO's currency (null for legacy IDR rows) and its IDR value.
+  price_foreign: decimal('price_foreign', { precision: 18, scale: 2 }),
   unit_price: decimal('unit_price', { precision: 18, scale: 2 }).notNull(),
   qty_received: decimal('qty_received', { precision: 18, scale: 4 }).notNull().default('0'),
   ...timestamps,
@@ -311,7 +420,17 @@ export const shipments = pgTable('shipments', {
   ship_date: date('ship_date').notNull(),
   total_shipping_cost: decimal('total_shipping_cost', { precision: 18, scale: 2 }).notNull(),
   allocation_method: varchar('allocation_method', { length: 20 }).notNull(),
+  // draft | in_transit | arrived | completed
   status: varchar('status', { length: 30 }).notNull().default('draft'),
+  total_weight: decimal('total_weight', { precision: 18, scale: 4 }),
+  tracking_no: varchar('tracking_no', { length: 100 }),
+  // Bill of Lading number and container number (sea freight).
+  bl_number: varchar('bl_number', { length: 100 }),
+  container_no: varchar('container_no', { length: 100 }),
+  // Total volume in cubic metres (CBM), summed from the lines.
+  total_volume: decimal('total_volume', { precision: 18, scale: 4 }),
+  eta_date: date('eta_date'),
+  notes: text('notes'),
   ...timestamps,
 })
 
@@ -328,6 +447,8 @@ export const shipmentItems = pgTable('shipment_items', {
   po_item_id: uuid('po_item_id').notNull().references(() => purchaseOrderItems.id),
   qty_shipped: decimal('qty_shipped', { precision: 18, scale: 4 }).notNull(),
   weight: decimal('weight', { precision: 18, scale: 4 }),
+  // Line volume in CBM (qty × packed unit volume, or typed manually).
+  volume: decimal('volume', { precision: 18, scale: 6 }),
   allocated_shipping_cost_per_unit: decimal('allocated_shipping_cost_per_unit', { precision: 18, scale: 4 }),
   ...timestamps,
 })
@@ -501,68 +622,35 @@ export const stockAdjustmentItems = pgTable('stock_adjustment_items', {
 })
 
 // ============================================================
-// §5.3 Sale
+// Stock Import (opening balance / reconciliation from Excel/CSV)
 // ============================================================
 
-export const saleOrders = pgTable('sale_orders', {
+export const stockImportBatches = pgTable('stock_import_batches', {
   id: uuid('id').primaryKey().defaultRandom(),
-  no_so: varchar('no_so', { length: 50 }).notNull().unique(),
-  customer_id: uuid('customer_id').notNull().references(() => customers.id),
+  no_batch: varchar('no_batch', { length: 50 }).notNull().unique(),
+  file_name: varchar('file_name', { length: 200 }),
+  import_date: date('import_date').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('committed'),
+  total_rows: integer('total_rows').notNull().default(0),
+  opening_rows: integer('opening_rows').notNull().default(0),
+  adjust_in_rows: integer('adjust_in_rows').notNull().default(0),
+  adjust_out_rows: integer('adjust_out_rows').notNull().default(0),
+  unchanged_rows: integer('unchanged_rows').notNull().default(0),
+  created_by: uuid('created_by').references(() => users.id),
+  ...timestamps,
+})
+
+// action: opening_balance | adjust_in | adjust_out | unchanged
+export const stockImportRows = pgTable('stock_import_rows', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  batch_id: uuid('batch_id').notNull().references(() => stockImportBatches.id),
+  product_id: uuid('product_id').notNull().references(() => products.id),
   warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
-  order_date: date('order_date').notNull(),
-  use_do: boolean('use_do').notNull().default(false),
-  status: varchar('status', { length: 30 }).notNull().default('draft'),
-  created_by: uuid('created_by').notNull().references(() => users.id),
-  ...timestamps,
-})
-
-export const saleOrderItems = pgTable('sale_order_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  so_id: uuid('so_id').notNull().references(() => saleOrders.id),
-  product_id: uuid('product_id').notNull().references(() => products.id),
-  qty_order: decimal('qty_order', { precision: 18, scale: 4 }).notNull(),
-  sell_price: decimal('sell_price', { precision: 18, scale: 2 }).notNull(),
-  qty_delivered: decimal('qty_delivered', { precision: 18, scale: 4 }).notNull().default('0'),
-  ...timestamps,
-})
-
-export const deliveryOrders = pgTable('delivery_orders', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  no_do: varchar('no_do', { length: 50 }).notNull().unique(),
-  so_id: uuid('so_id').notNull().references(() => saleOrders.id),
-  warehouse_id: uuid('warehouse_id').notNull().references(() => warehouses.id),
-  delivery_date: date('delivery_date').notNull(),
-  status: varchar('status', { length: 30 }).notNull().default('draft'),
-  ...timestamps,
-})
-
-export const deliveryOrderItems = pgTable('delivery_order_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  do_id: uuid('do_id').notNull().references(() => deliveryOrders.id),
-  so_item_id: uuid('so_item_id').notNull().references(() => saleOrderItems.id),
-  product_id: uuid('product_id').notNull().references(() => products.id),
-  qty_delivered: decimal('qty_delivered', { precision: 18, scale: 4 }).notNull(),
-  cogs_per_unit: decimal('cogs_per_unit', { precision: 18, scale: 4 }),
-  ...timestamps,
-})
-
-export const saleReturns = pgTable('sale_returns', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  no_return: varchar('no_return', { length: 50 }).notNull().unique(),
-  source_type: varchar('source_type', { length: 10 }).notNull(),
-  source_id: uuid('source_id').notNull(),
-  return_date: date('return_date').notNull(),
-  condition: varchar('condition', { length: 10 }).notNull(),
-  status: varchar('status', { length: 30 }).notNull().default('draft'),
-  ...timestamps,
-})
-
-export const saleReturnItems = pgTable('sale_return_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  return_id: uuid('return_id').notNull().references(() => saleReturns.id),
-  product_id: uuid('product_id').notNull().references(() => products.id),
-  qty_return: decimal('qty_return', { precision: 18, scale: 4 }).notNull(),
-  restore_hpp: decimal('restore_hpp', { precision: 18, scale: 4 }),
+  qty_before: decimal('qty_before', { precision: 18, scale: 4 }).notNull(),
+  qty_import: decimal('qty_import', { precision: 18, scale: 4 }).notNull(),
+  qty_diff: decimal('qty_diff', { precision: 18, scale: 4 }).notNull(),
+  hpp: decimal('hpp', { precision: 18, scale: 4 }),
+  action: varchar('action', { length: 20 }).notNull(),
   ...timestamps,
 })
 

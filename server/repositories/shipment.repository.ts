@@ -37,14 +37,7 @@ export function findShipment(id: string) {
   return db.query.shipments.findFirst({ where: eq(shipments.id, id) })
 }
 
-export function createShipment(values: {
-  no_shipment: string
-  expedition_id: string
-  ship_date: string
-  total_shipping_cost: string
-  allocation_method: string
-  status?: string
-}) {
+export function createShipment(values: typeof shipments.$inferInsert) {
   return db.insert(shipments).values(values).returning()
 }
 
@@ -81,6 +74,7 @@ export function createShipmentItem(values: {
   po_item_id: string
   qty_shipped: string
   weight?: string | null
+  volume?: string | null
 }) {
   return db.insert(shipmentItems).values(values).returning()
 }

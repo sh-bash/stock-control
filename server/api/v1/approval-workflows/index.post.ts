@@ -5,10 +5,8 @@ import { success } from '../../../utils/response'
 const DOCUMENT_TYPES = [
   'po',
   'receiving',
+  'product_request',
   'purchase_return',
-  'so',
-  'do',
-  'sale_return',
   'adjustment',
   'transfer',
 ] as const

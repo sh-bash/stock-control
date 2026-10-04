@@ -9,7 +9,9 @@ export default defineEventHandler((event) => {
   if (PUBLIC_PATHS.includes(path)) return
 
   const authHeader = getHeader(event, 'authorization')
-  const queryToken = path === '/api/v1/notifications/stream' ? getQuery(event).token : undefined
+  // SSE (EventSource) and <img src> can't send an Authorization header.
+  const allowsQueryToken = path === '/api/v1/notifications/stream' || /^\/api\/v1\/attachments\/[^/]+\/file$/.test(path)
+  const queryToken = allowsQueryToken ? getQuery(event).token : undefined
 
   const token = authHeader?.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length)

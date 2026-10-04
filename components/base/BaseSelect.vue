@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// Every dropdown in the app is a searchable select: BaseSelect keeps its old
+// API (so existing pages need no change) but renders BaseSearchableSelect —
+// type to filter, click to pick, × to clear.
 interface Option {
   value: string
   label: string
@@ -14,6 +17,7 @@ withDefaults(
     helperText?: string | null
     required?: boolean
     disabled?: boolean
+    clearable?: boolean
   }>(),
   {
     label: '',
@@ -22,33 +26,24 @@ withDefaults(
     helperText: null,
     required: false,
     disabled: false,
+    clearable: true,
   },
 )
 
 defineEmits<{ 'update:modelValue': [string] }>()
-
-const uid = useId()
 </script>
 
 <template>
-  <div class="base-field">
-    <label v-if="label" :for="uid" class="base-field-label">
-      {{ label }}
-      <span v-if="required" class="base-field-required">*</span>
-    </label>
-    <select
-      :id="uid"
-      class="base-field-control"
-      :class="{ 'has-error': error }"
-      :value="modelValue"
-      :disabled="disabled"
-      :required="required"
-      @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
-    >
-      <option value="">{{ placeholder }}</option>
-      <option v-for="opt in options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-    </select>
-    <span v-if="error" class="base-field-error">{{ error }}</span>
-    <span v-else-if="helperText" class="base-field-helper">{{ helperText }}</span>
-  </div>
+  <BaseSearchableSelect
+    :model-value="modelValue ?? ''"
+    :label="label"
+    :options="options"
+    :placeholder="placeholder"
+    :error="error"
+    :helper-text="helperText"
+    :required="required"
+    :disabled="disabled"
+    :clearable="clearable"
+    @update:model-value="(v) => $emit('update:modelValue', v)"
+  />
 </template>

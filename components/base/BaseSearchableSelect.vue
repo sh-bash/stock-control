@@ -12,8 +12,12 @@ const props = withDefaults(
     placeholder?: string
     required?: boolean
     error?: string | null
+    helperText?: string | null
+    disabled?: boolean
+    // false hides the × button — for fields that must always keep a value (e.g. currency).
+    clearable?: boolean
   }>(),
-  { label: '', placeholder: 'Cari...', required: false, error: null },
+  { label: '', placeholder: 'Cari...', required: false, error: null, helperText: null, disabled: false, clearable: true },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -64,10 +68,11 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
         type="text"
         :value="open ? query : selectedLabel"
         :placeholder="placeholder"
+        :disabled="disabled"
         @focus="open = true"
         @input="query = ($event.target as HTMLInputElement).value"
       />
-      <button v-if="modelValue && !open" type="button" class="ss-clear" aria-label="Hapus" @click="clearSelection">×</button>
+      <button v-if="clearable && modelValue && !open && !disabled" type="button" class="ss-clear" aria-label="Hapus" @click="clearSelection">×</button>
       <div v-if="open" class="ss-panel">
         <div v-for="opt in filtered" :key="opt.value" class="ss-option" @mousedown.prevent="selectOption(opt)">
           {{ opt.label }}
@@ -76,6 +81,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
       </div>
     </div>
     <span v-if="error" class="base-field-error">{{ error }}</span>
+    <span v-else-if="helperText" class="base-field-helper">{{ helperText }}</span>
   </div>
 </template>
 
